@@ -12,11 +12,33 @@ async function bootstrap() {
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   }));
+  
+  // CORS configuration - permite múltiples orígenes
+  const allowedOrigins = process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['http://localhost:3000', 'http://localhost:3001'];
+  
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Permitir requests sin origen (mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+      
+      // Permitir si el origen está en la lista o si es el mismo dominio
+      if (allowedOrigins.includes(origin) || origin.includes('localhost')) {
+        return callback(null, true);
+      }
+      
+      // En desarrollo, permitir cualquier origen localhost
+      if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+        return callback(null, true);
+      }
+      
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
   });
 
   // Rate limiting - más permisivo para desarrollo

@@ -27,6 +27,7 @@ out/
 .env.*.local
 apps/api/.env
 apps/web/.env.local
+!.env.example
 
 # IDE
 .vscode/
