@@ -16,7 +16,7 @@ async function bootstrap() {
   // CORS configuration - permite múltiples orígenes
   const allowedOrigins = process.env.FRONTEND_URL 
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-    : ['http://localhost:3000', 'http://localhost:3001'];
+    : ['http://localhost:4000', 'http://localhost:4001'];
   
   app.enableCors({
     origin: (origin, callback) => {

@@ -27,6 +27,6 @@ COPY --from=builder /app/.next/static ./.next/static
 # Copiar public (ya existe porque lo creamos en builder)
 COPY --from=builder /app/public ./public
 
-EXPOSE 3000
+EXPOSE 4000
 
 CMD ["node", "server.js"]

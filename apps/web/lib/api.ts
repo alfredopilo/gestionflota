@@ -10,13 +10,13 @@ function resolveApiUrl() {
     const host = window.location.hostname;
     const protocol = window.location.protocol;
     if (host && host !== 'localhost' && host !== '127.0.0.1') {
-      // Convención: API corre en el mismo host en el puerto 3001
-      return `${protocol}//${host}:3001`;
+      // Convención: API corre en el mismo host en el puerto 4001
+      return `${protocol}//${host}:4001`;
     }
   }
 
   // 3) Último recurso para desarrollo local
-  return 'http://localhost:3001';
+  return 'http://localhost:4001';
 }
 
 const API_URL = resolveApiUrl();

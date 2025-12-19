@@ -36,7 +36,7 @@ RUN npx prisma generate
 # Construir la aplicación
 RUN npm run build
 
-EXPOSE 3001
+EXPOSE 4001
 
 # Comando por defecto (puede ser sobrescrito por docker-compose)
 CMD ["npm", "run", "start:prod"]

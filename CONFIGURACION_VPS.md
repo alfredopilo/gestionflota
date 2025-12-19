@@ -8,10 +8,10 @@ Para que la aplicación funcione correctamente en un VPS, necesitas configurar l
 
 ```bash
 # URL del frontend (puede ser múltiples URLs separadas por comas)
-FRONTEND_URL=http://tu-dominio.com,https://tu-dominio.com
+FRONTEND_URL=http://tu-dominio.com:4000,https://tu-dominio.com:4000
 
 # URL de la API para el frontend
-NEXT_PUBLIC_API_URL=http://tu-dominio.com:3001
+NEXT_PUBLIC_API_URL=http://tu-dominio.com:4001
 # O si usas un dominio diferente para la API:
 # NEXT_PUBLIC_API_URL=https://api.tu-dominio.com
 
@@ -44,7 +44,7 @@ server {
     server_name tu-dominio.com;
 
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -62,7 +62,7 @@ server {
     server_name api.tu-dominio.com;
 
     location / {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:4001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -86,7 +86,7 @@ server {
 
     # Frontend
     location / {
-        proxy_pass http://localhost:3000;
+        proxy_pass http://localhost:4000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -96,7 +96,7 @@ server {
 
     # API
     location /api {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:4001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -109,8 +109,8 @@ server {
 Y actualiza las variables de entorno:
 
 ```bash
-FRONTEND_URL=http://tu-dominio.com,https://tu-dominio.com
-NEXT_PUBLIC_API_URL=http://tu-dominio.com
+FRONTEND_URL=http://tu-dominio.com:4000,https://tu-dominio.com:4000
+NEXT_PUBLIC_API_URL=http://tu-dominio.com:4001
 ```
 
 ### 5. Verificar que CORS funciona:
@@ -122,7 +122,7 @@ curl -H "Origin: http://tu-dominio.com" \
      -H "Access-Control-Request-Method: POST" \
      -H "Access-Control-Request-Headers: Content-Type" \
      -X OPTIONS \
-     http://localhost:3001/api/v1/auth/login \
+     http://localhost:4001/api/v1/auth/login \
      -v
 ```
 
@@ -150,5 +150,5 @@ Access-Control-Allow-Credentials: true
 ### Error: "Connection refused"
 
 1. Verifica que el contenedor de la API esté corriendo
-2. Verifica que el puerto 3001 esté expuesto correctamente
+2. Verifica que el puerto 4001 esté expuesto correctamente
 3. Si usas Nginx, verifica la configuración del proxy
