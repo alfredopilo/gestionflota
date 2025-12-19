@@ -1,0 +1,521 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Seed configuration
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTENTICACIÓN Y USUARIOS
+// ============================================
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users     User[]
+  vehicles  Vehicle[]
+  drivers   Driver[]
+  routes    Route[]
+  trips     Trip[]
+  plans     MaintenancePlan[]
+  workOrders WorkOrder[]
+  inspections Inspection[]
+  inspectionTemplates InspectionTemplate[]
+  alerts    Alert[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  phone        String?
+  isActive     Boolean  @default(true) @map("is_active")
+  companyId    String   @map("company_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  userRoles   UserRole[]
+  createdTrips Trip[]      @relation("TripCreator")
+  workOrders  WorkOrder[]  @relation("WorkOrderOperator")
+  supervisedWorkOrders WorkOrder[] @relation("WorkOrderSupervisor")
+  inspections Inspection[]
+  auditLogs   AuditLog[]
+  signatures  WorkOrderSignature[]
+
+  @@index([companyId])
+  @@index([email])
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+// ============================================
+// FLOTA Y VEHÍCULOS
+// ============================================
+
+model Vehicle {
+  id                      String   @id @default(uuid())
+  plate                   String
+  brand                   String
+  model                   String
+  year                    Int?
+  vin                     String?  @unique
+  type                    String   // camión, remolque, etc.
+  capacity                String?
+  status                  String   @default("ACTIVE") // ACTIVE, MAINTENANCE, INACTIVE, RETIRED
+  odometer                Decimal  @default(0) @db.Decimal(12, 2)
+  hourmeter               Decimal  @default(0) @db.Decimal(12, 2)
+  lastMaintenanceDate     DateTime? @map("last_maintenance_date")
+  nextMaintenanceEstimated DateTime? @map("next_maintenance_estimated")
+  companyId               String   @map("company_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  deletedAt               DateTime? @map("deleted_at")
+
+  company           Company            @relation(fields: [companyId], references: [id])
+  documents         VehicleDocument[]
+  assignments       VehicleAssignment[]
+  trips             Trip[]
+  workOrders        WorkOrder[]
+  inspections       Inspection[]
+  alerts            Alert[]
+
+  @@index([companyId])
+  @@index([plate])
+  @@index([status])
+  @@map("vehicles")
+}
+
+model VehicleDocument {
+  id          String    @id @default(uuid())
+  vehicleId   String    @map("vehicle_id")
+  documentType String   @map("document_type") // MATRICULA, REVISION, PERMISO, SEGURO
+  number      String?
+  issueDate   DateTime? @map("issue_date")
+  expiryDate  DateTime? @map("expiry_date")
+  fileUrl     String?   @map("file_url")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([expiryDate])
+  @@map("vehicle_documents")
+}
+
+model Driver {
+  id          String   @id @default(uuid())
+  name        String
+  licenseNumber String? @map("license_number")
+  phone       String?
+  email       String?
+  companyId   String   @map("company_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  company     Company           @relation(fields: [companyId], references: [id])
+  assignments VehicleAssignment[]
+  tripsAsDriver1 Trip[]        @relation("Driver1")
+  tripsAsDriver2 Trip[]        @relation("Driver2")
+
+  @@index([companyId])
+  @@map("drivers")
+}
+
+model VehicleAssignment {
+  id          String    @id @default(uuid())
+  vehicleId   String    @map("vehicle_id")
+  driverId    String    @map("driver_id")
+  assignedAt  DateTime  @default(now()) @map("assigned_at")
+  unassignedAt DateTime? @map("unassigned_at")
+  isActive    Boolean   @default(true) @map("is_active")
+  notes       String?
+
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([isActive])
+  @@map("vehicle_assignments")
+}
+
+// ============================================
+// RUTAS
+// ============================================
+
+model Route {
+  id              String   @id @default(uuid())
+  code            String
+  name            String
+  origin          String
+  destination     String
+  distanceKm      Decimal? @map("distance_km") @db.Decimal(10, 2)
+  estimatedHours  Decimal? @map("estimated_hours") @db.Decimal(5, 2)
+  companyId      String   @map("company_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  company         Company  @relation(fields: [companyId], references: [id])
+  trips           Trip[]
+
+  @@index([companyId])
+  @@index([code])
+  @@map("routes")
+}
+
+// ============================================
+// VIAJES DIARIOS
+// ============================================
+
+model Trip {
+  id            String    @id @default(uuid())
+  date          DateTime  @db.Date
+  routeId       String?   @map("route_id")
+  vehicleId     String    @map("vehicle_id")
+  driver1Id     String?   @map("driver1_id")
+  driver2Id     String?   @map("driver2_id")
+  origin        String?
+  destination   String?
+  departureTime DateTime? @map("departure_time")
+  arrivalTime   DateTime? @map("arrival_time")
+  kmStart       Decimal?  @map("km_start") @db.Decimal(10, 2)
+  kmEnd         Decimal?  @map("km_end") @db.Decimal(10, 2)
+  kmTotal       Decimal?  @map("km_total") @db.Decimal(10, 2)
+  tripType      String?   @map("trip_type") // d/a/m/c del Excel
+  loadType      String?   @map("load_type") // BAÑERAS, CONTENEDORES, TANQUEROS
+  returnTrip    Boolean   @default(false) @map("return_trip")
+  baseAmount    Decimal?  @map("base_amount") @db.Decimal(10, 2)
+  extraAmount   Decimal?  @map("extra_amount") @db.Decimal(10, 2)
+  status        String    @default("COMPLETED")
+  notes         String?
+  companyId     String    @map("company_id")
+  createdById   String?   @map("created_by_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  route         Route?    @relation(fields: [routeId], references: [id])
+  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id])
+  driver1       Driver?   @relation("Driver1", fields: [driver1Id], references: [id])
+  driver2       Driver?   @relation("Driver2", fields: [driver2Id], references: [id])
+  company       Company   @relation(fields: [companyId], references: [id])
+  createdBy     User?     @relation("TripCreator", fields: [createdById], references: [id])
+
+  @@index([companyId])
+  @@index([date])
+  @@index([vehicleId])
+  @@index([driver1Id])
+  @@index([routeId])
+  @@map("trips")
+}
+
+// ============================================
+// PLAN DE MANTENIMIENTO
+// ============================================
+
+model MaintenancePlan {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  vehicleType String?  @map("vehicle_type")
+  isActive    Boolean  @default(true) @map("is_active")
+  companyId   String   @map("company_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company     Company              @relation(fields: [companyId], references: [id])
+  intervals   MaintenanceInterval[]
+  activities  MaintenanceActivity[]
+
+  @@index([companyId])
+  @@index([isActive])
+  @@map("maintenance_plans")
+}
+
+model MaintenanceInterval {
+  id            String   @id @default(uuid())
+  planId        String   @map("plan_id")
+  hours         Decimal  @db.Decimal(10, 2)
+  kilometers    Decimal  @db.Decimal(12, 2)
+  sequenceOrder Int      @map("sequence_order")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  plan          MaintenancePlan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  activityMatrix ActivityIntervalMatrix[]
+
+  @@index([planId])
+  @@index([sequenceOrder])
+  @@map("maintenance_intervals")
+}
+
+model MaintenanceActivity {
+  id          String   @id @default(uuid())
+  planId      String   @map("plan_id")
+  code        String   // A.1, A.2, B.1, etc.
+  description String
+  category    String?  // A, B, C, etc.
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  plan        MaintenancePlan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  activityMatrix ActivityIntervalMatrix[]
+  workOrderItems WorkOrderItem[]
+
+  @@index([planId])
+  @@index([code])
+  @@map("maintenance_activities")
+}
+
+model ActivityIntervalMatrix {
+  id         String   @id @default(uuid())
+  activityId String   @map("activity_id")
+  intervalId String   @map("interval_id")
+  applies    Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  activity   MaintenanceActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  interval   MaintenanceInterval  @relation(fields: [intervalId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, intervalId])
+  @@index([activityId])
+  @@index([intervalId])
+  @@map("activity_interval_matrix")
+}
+
+// ============================================
+// ÓRDENES DE TRABAJO Y MANTENIMIENTO
+// ============================================
+
+model WorkOrder {
+  id                  String   @id @default(uuid())
+  number              String   @unique
+  vehicleId           String   @map("vehicle_id")
+  type                String   // PREVENTIVE, CORRECTIVE
+  status              String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, CANCELLED
+  scheduledDate       DateTime? @map("scheduled_date")
+  startedAt           DateTime? @map("started_at")
+  completedAt         DateTime? @map("completed_at")
+  odometerAtStart     Decimal? @map("odometer_at_start") @db.Decimal(12, 2)
+  hourmeterAtStart    Decimal? @map("hourmeter_at_start") @db.Decimal(12, 2)
+  totalCost           Decimal? @map("total_cost") @db.Decimal(10, 2)
+  operatorId          String?  @map("operator_id")
+  supervisorId        String?  @map("supervisor_id")
+  notes               String?
+  companyId           String   @map("company_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  vehicle             Vehicle              @relation(fields: [vehicleId], references: [id])
+  company             Company              @relation(fields: [companyId], references: [id])
+  operator            User?                @relation("WorkOrderOperator", fields: [operatorId], references: [id])
+  supervisor          User?                @relation("WorkOrderSupervisor", fields: [supervisorId], references: [id])
+  items               WorkOrderItem[]
+  signatures          WorkOrderSignature[]
+
+  @@index([companyId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([number])
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id           String    @id @default(uuid())
+  workOrderId  String    @map("work_order_id")
+  activityId   String?   @map("activity_id")
+  status       String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, SKIPPED
+  observations String?
+  partsUsed    String?   @map("parts_used")
+  laborHours   Decimal?  @map("labor_hours") @db.Decimal(5, 2)
+  cost         Decimal?  @db.Decimal(10, 2)
+  evidenceUrls String[]  @map("evidence_urls") @default([])
+  completedAt  DateTime? @map("completed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  workOrder    WorkOrder         @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  activity     MaintenanceActivity? @relation(fields: [activityId], references: [id])
+
+  @@index([workOrderId])
+  @@index([activityId])
+  @@map("work_order_items")
+}
+
+model WorkOrderSignature {
+  id            String   @id @default(uuid())
+  workOrderId   String   @map("work_order_id")
+  userId        String   @map("user_id")
+  role          String
+  signatureType String   @map("signature_type") // OPERATOR, SUPERVISOR, APPROVER
+  signedAt      DateTime @default(now()) @map("signed_at")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+
+  workOrder     WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@index([workOrderId])
+  @@index([userId])
+  @@map("work_order_signatures")
+}
+
+// ============================================
+// INSPECCIONES (CHECKLIST TIPO PDF)
+// ============================================
+
+model InspectionTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  sections    Json     // Estructura de secciones del checklist
+  isActive    Boolean  @default(true) @map("is_active")
+  companyId   String   @map("company_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company     Company      @relation(fields: [companyId], references: [id])
+  inspections Inspection[]
+
+  @@index([companyId])
+  @@index([isActive])
+  @@map("inspection_templates")
+}
+
+model Inspection {
+  id            String   @id @default(uuid())
+  vehicleId     String   @map("vehicle_id")
+  templateId    String?  @map("template_id")
+  inspectorId   String   @map("inspector_id")
+  inspectionDate DateTime @default(now()) @map("inspection_date")
+  status        String   @default("PENDING") // PENDING, COMPLETED, CANCELLED
+  notes         String?
+  companyId     String   @map("company_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  vehicle       Vehicle           @relation(fields: [vehicleId], references: [id])
+  template      InspectionTemplate? @relation(fields: [templateId], references: [id])
+  inspector     User              @relation(fields: [inspectorId], references: [id])
+  company       Company           @relation(fields: [companyId], references: [id])
+  items         InspectionItem[]
+
+  @@index([companyId])
+  @@index([vehicleId])
+  @@index([inspectorId])
+  @@index([inspectionDate])
+  @@map("inspections")
+}
+
+model InspectionItem {
+  id            String   @id @default(uuid())
+  inspectionId   String   @map("inspection_id")
+  section       String   // Sistema de luces, Motor, etc.
+  itemName      String   @map("item_name")
+  status        String?  // REVISION, MANTENIMIENTO, CAMBIO
+  observations  String?
+  photosUrls    String[] @map("photos_urls") @default([])
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+  @@index([section])
+  @@map("inspection_items")
+}
+
+// ============================================
+// ALERTAS Y NOTIFICACIONES
+// ============================================
+
+model Alert {
+  id            String    @id @default(uuid())
+  type          String    // MAINTENANCE_DUE, DOCUMENT_EXPIRY, VEHICLE_INACTIVE, TRIP_ANOMALY
+  severity      String    @default("INFO") // INFO, WARNING, CRITICAL
+  vehicleId     String?   @map("vehicle_id")
+  message       String
+  dueDate       DateTime? @map("due_date")
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  acknowledgedBy String?  @map("acknowledged_by")
+  companyId     String    @map("company_id")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  vehicle       Vehicle?  @relation(fields: [vehicleId], references: [id])
+  company       Company   @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([vehicleId])
+  @@index([type])
+  @@index([acknowledgedAt])
+  @@map("alerts")
+}
+
+// ============================================
+// AUDITORÍA
+// ============================================
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  entityType    String   @map("entity_type")
+  entityId      String   @map("entity_id")
+  action        String   // CREATE, UPDATE, DELETE
+  userId        String?  @map("user_id")
+  changesBefore Json?   @map("changes_before")
+  changesAfter  Json?   @map("changes_after")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user          User?    @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

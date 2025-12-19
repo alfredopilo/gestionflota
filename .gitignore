@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output
+
+# Production
+build/
+dist/
+.next/
+out/
+**/dist/
+**/.next/
+
+# Misc
+.DS_Store
+*.pem
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+apps/api/.env
+apps/web/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Prisma
+prisma/migrations/
+*.tsbuildinfo
+
+# Uploads
+uploads/
+*.xlsx
+*.pdf
+!docs/*.xlsx
+
+# Docker
+.dockerignore
+
+# Source analysis
+source_analysis.json
+analysis_output.txt
+
+# OS
+Thumbs.db
