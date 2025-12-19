@@ -9,6 +9,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Asegurar que public existe antes del build
 RUN mkdir -p /app/public
+
+# Next.js: las variables NEXT_PUBLIC_* se inyectan en build
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 RUN npm run build
 
 FROM node:18-alpine AS runner
