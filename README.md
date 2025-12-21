@@ -40,26 +40,29 @@ Gestiondeflota/
 
 1. **Configurar variables de entorno**:
    ```bash
-   cp .env.example .env
+   cp env.example .env
    # Editar .env con tus valores si es necesario
    ```
 
-2. **Iniciar todos los servicios**:
+2. **Construir e iniciar todos los servicios** (importante para que Next.js tome `NEXT_PUBLIC_API_URL` en build):
    ```bash
-   docker-compose up -d
+   docker compose build --no-cache web api
+   docker compose up -d
    ```
 
 3. **Ejecutar migraciones y seed**:
    ```bash
-   docker-compose exec api npm run prisma:migrate
-   docker-compose exec api npm run prisma:seed
+   docker compose exec api npx prisma migrate deploy
+   docker compose exec api npm run prisma:seed
    ```
 
 4. **Acceder a la aplicación**:
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:3001
-   - Swagger Docs: http://localhost:3001/api/docs
+   - Frontend: http://localhost:4000
+   - Backend API: http://localhost:4001
+   - Swagger Docs: http://localhost:4001/api/docs
    - **Credenciales**: admin@example.com / admin123
+
+> Nota: en VPS reemplaza `localhost` por tu IP o dominio. Ej: `http://142.93.17.71:4000` y `http://142.93.17.71:4001`.
 
 ### Instalación Manual
 

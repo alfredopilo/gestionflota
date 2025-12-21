@@ -1,19 +1,70 @@
 # Configuración de Docker - Sistema de Control de Flotas
 
-## ⚠️ Problema Actual
+## ✅ Producción / VPS (Docker completo) — Recomendado
 
-Hay un problema temporal al construir las imágenes Docker debido a la descarga de los engines de Prisma. Esto puede ser un problema de red o temporal.
+### 1) Variables de entorno
 
-## 🚀 Solución Recomendada para Desarrollo
+En la raíz del proyecto:
 
-Para desarrollo, **no necesitas construir las imágenes Docker**. Puedes ejecutar los servicios directamente:
+```bash
+cp env.example .env
+```
+
+Edita `.env` y define al menos:
+
+```bash
+FRONTEND_URL=http://TU_IP_O_DOMINIO:4000
+NEXT_PUBLIC_API_URL=http://TU_IP_O_DOMINIO:4001
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=TU_PASSWORD_REAL
+POSTGRES_DB=gestiondeflota
+JWT_SECRET=CAMBIA_ESTE_SECRET
+JWT_REFRESH_SECRET=CAMBIA_ESTE_SECRET
+```
+
+### 2) Build + Up
+
+**Importante**: Next.js “hornea” `NEXT_PUBLIC_API_URL` en build, por eso debes reconstruir `web` cuando cambies `.env`.
+
+```bash
+docker compose down
+docker compose build --no-cache web api
+docker compose up -d
+docker compose ps
+```
+
+### 3) Migraciones + Seed
+
+```bash
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npm run prisma:seed
+```
+
+### 4) URLs
+
+- Frontend: `http://TU_IP_O_DOMINIO:4000`
+- API: `http://TU_IP_O_DOMINIO:4001`
+- Swagger: `http://TU_IP_O_DOMINIO:4001/api/docs`
+
+### 5) Problemas típicos
+
+- **Login da 500**: normalmente faltan migraciones/seed → corre el paso 3.
+- **Auth DB (P1000)**: cambiaste password luego de crear el volumen → para “reset”:
+
+```bash
+docker compose down -v
+docker compose up -d
+docker compose exec api npx prisma migrate deploy
+docker compose exec api npm run prisma:seed
+```
+
+## 🧪 Desarrollo (mixto) — DB/Redis en Docker + Apps local
 
 ### Opción 1: Ejecutar servicios directamente (Recomendado para desarrollo)
 
 1. **Base de datos y Redis (Docker)**:
    ```bash
-   cd c:\Cursorcode\Gestiondeflota
-   docker-compose up -d postgres redis
+   docker compose up -d postgres redis
    ```
 
 2. **Backend (localmente)**:
@@ -55,35 +106,7 @@ El `docker-compose.yml` está configurado para desarrollo con volúmenes. Sin em
    docker-compose up -d
    ```
 
-## 🔧 Para Producción (cuando la red esté estable)
-
-Si necesitas construir las imágenes para producción, intenta:
-
-1. **Verificar conexión a internet**
-2. **Usar un mirror de npm** (si es necesario):
-   ```bash
-   npm config set registry https://registry.npmjs.org/
-   ```
-
-3. **Construir con más tiempo de espera**:
-   ```bash
-   docker-compose build --progress=plain --no-cache api
-   ```
-
-4. **O construir manualmente cada servicio**:
-   ```bash
-   docker build -t gestiondeflota-api ./apps/api -f Dockerfile.dev
-   ```
-
-## 📝 Estado Actual
-
-- ✅ PostgreSQL: Corriendo en puerto 5432
-- ✅ Redis: Corriendo en puerto 6379
-- ⚠️ API: Problema al construir imagen (pero puedes ejecutarlo localmente)
-- ⚠️ Web: Problema al construir imagen (pero puedes ejecutarlo localmente)
-
 ## 🎯 Recomendación
 
-**Para desarrollo**, usa la **Opción 1** (servicios locales + Docker solo para DB/Redis). Es más rápido y evita problemas de build.
-
-**Para producción**, resuelve el problema de red y construye las imágenes cuando sea necesario.
+- **VPS/Producción**: usar el flujo “Docker completo” de arriba.
+- **Desarrollo**: usar el flujo “mixto” (DB/Redis en Docker + apps local).
