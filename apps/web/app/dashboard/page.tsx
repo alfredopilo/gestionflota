@@ -152,20 +152,20 @@ export default function DashboardPage() {
   ] : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-gray-600">Resumen general del sistema</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">Resumen general del sistema</p>
       </div>
 
       {/* KPI Cards */}
       {kpis && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {KPI_CARDS.map((card) => (
             <div
               key={card.id}
-              className={`${card.color} ${card.hoverColor} rounded-xl p-6 text-white transition-all duration-300 cursor-pointer transform`}
+              className={`${card.color} ${card.hoverColor} rounded-xl p-4 sm:p-6 text-white transition-all duration-300 cursor-pointer transform`}
               onMouseEnter={() => setHoveredCard(card.id)}
               onMouseLeave={() => setHoveredCard(null)}
               onClick={() => {
@@ -176,20 +176,20 @@ export default function DashboardPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <p className="text-white/80 text-sm font-medium">{card.title}</p>
-                  <p className="text-3xl font-bold mt-2">{card.value}</p>
-                  <p className="text-white/70 text-sm mt-1">{card.subtitle}</p>
+                  <p className="text-white/80 text-xs sm:text-sm font-medium">{card.title}</p>
+                  <p className="text-2xl sm:text-3xl font-bold mt-2">{card.value}</p>
+                  <p className="text-white/70 text-xs sm:text-sm mt-1">{card.subtitle}</p>
                   {card.percentage && (
-                    <p className="text-lg font-semibold mt-2">{card.percentage}</p>
+                    <p className="text-base sm:text-lg font-semibold mt-2">{card.percentage}</p>
                   )}
                   {card.trend && (
-                    <div className="flex items-center mt-2 text-sm">
+                    <div className="flex items-center mt-2 text-xs sm:text-sm">
                       <span className="text-green-200">{card.trend}</span>
                       <span className="ml-1">{card.trendValue}</span>
                     </div>
                   )}
                 </div>
-                <div className="text-4xl opacity-80">{card.icon}</div>
+                <div className="text-3xl sm:text-4xl opacity-80">{card.icon}</div>
               </div>
             </div>
           ))}
@@ -198,11 +198,11 @@ export default function DashboardPage() {
 
       {/* Charts Row */}
       {kpis && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Estado de Flota - Pie Chart */}
-          <div className="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Estado de la Flota</h3>
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Estado de la Flota</h3>
+            <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
                   data={fleetStatusData}
@@ -210,7 +210,7 @@ export default function DashboardPage() {
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
+                  outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                   animationBegin={0}
@@ -224,28 +224,28 @@ export default function DashboardPage() {
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
-            <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4 text-center">
               <div>
-                <p className="text-2xl font-bold text-green-600">{kpis.operationalVehicles}</p>
-                <p className="text-sm text-gray-600">Activos</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{kpis.operationalVehicles}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Activos</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-orange-600">{kpis.maintenanceVehicles}</p>
-                <p className="text-sm text-gray-600">Mantenimiento</p>
+                <p className="text-xl sm:text-2xl font-bold text-orange-600">{kpis.maintenanceVehicles}</p>
+                <p className="text-xs sm:text-sm text-gray-600">Mantenimiento</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-red-600">
+                <p className="text-xl sm:text-2xl font-bold text-red-600">
                   {kpis.totalVehicles - kpis.operationalVehicles - kpis.maintenanceVehicles}
                 </p>
-                <p className="text-sm text-gray-600">Inactivos</p>
+                <p className="text-xs sm:text-sm text-gray-600">Inactivos</p>
               </div>
             </div>
           </div>
 
           {/* Viajes por Mes - Bar Chart */}
-          <div className="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Viajes por Mes</h3>
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Viajes por Mes</h3>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={tripsData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="name" stroke="#6b7280" />
@@ -274,16 +274,16 @@ export default function DashboardPage() {
 
       {/* Metrics Row */}
       {kpis && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Cumplimiento de Mantenimiento */}
-          <div className="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Cumplimiento Mantenimiento</h3>
-              <span className="text-2xl">✅</span>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800">Cumplimiento Mantenimiento</h3>
+              <span className="text-xl sm:text-2xl">✅</span>
             </div>
             <div className="relative pt-1">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-3xl font-bold text-gray-900">
+                <span className="text-2xl sm:text-3xl font-bold text-gray-900">
                   {kpis.maintenanceCompliance.toFixed(1)}%
                 </span>
               </div>
@@ -293,24 +293,24 @@ export default function DashboardPage() {
                   className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-green-400 to-green-600 transition-all duration-500"
                 ></div>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-xs sm:text-sm text-gray-600">
                 {kpis.operationalVehicles} mantenimientos completados a tiempo
               </p>
             </div>
           </div>
 
           {/* Costos de Mantenimiento */}
-          <div className="bg-white rounded-xl shadow-lg p-6 transition-all duration-300 hover:shadow-xl">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 transition-all duration-300 hover:shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Costos Mantenimiento</h3>
-              <span className="text-2xl">💰</span>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-800">Costos Mantenimiento</h3>
+              <span className="text-xl sm:text-2xl">💰</span>
             </div>
             <div>
-              <p className="text-3xl font-bold text-gray-900">
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900">
                 ${kpis.totalMaintenanceCost.toLocaleString('es-ES')}
               </p>
-              <p className="text-sm text-gray-600 mt-2">Total acumulado</p>
-              <div className="mt-4 flex items-center text-sm">
+              <p className="text-xs sm:text-sm text-gray-600 mt-2">Total acumulado</p>
+              <div className="mt-4 flex items-center text-xs sm:text-sm">
                 <span className="text-green-600 font-semibold">↓ 8%</span>
                 <span className="ml-2 text-gray-600">vs mes anterior</span>
               </div>
@@ -320,7 +320,7 @@ export default function DashboardPage() {
       )}
 
       {!kpis && !loading && (
-        <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 text-center">
           <p className="text-gray-500">No hay datos disponibles</p>
         </div>
       )}

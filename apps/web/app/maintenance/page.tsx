@@ -95,26 +95,26 @@ export default function MaintenancePage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Mantenimientos</h1>
-        <div className="flex space-x-3">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Mantenimientos</h1>
+        <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             onClick={() => router.push('/maintenance/plans')}
-            className="rounded-md bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform flex items-center space-x-2"
+            className="rounded-md bg-purple-600 px-3 sm:px-4 py-2 text-white hover:bg-purple-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform flex items-center space-x-2 text-sm sm:text-base"
           >
             <span>📋</span>
             <span>Planes</span>
           </button>
           <button
             onClick={() => router.push('/maintenance/plans/import')}
-            className="rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform flex items-center space-x-2"
+            className="rounded-md bg-green-600 px-3 sm:px-4 py-2 text-white hover:bg-green-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform flex items-center space-x-2 text-sm sm:text-base"
           >
             <span>📥</span>
             <span>Importar Plan</span>
           </button>
           <button
             onClick={() => router.push('/maintenance/new')}
-            className="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform flex items-center space-x-2"
+            className="rounded-md bg-blue-600 px-3 sm:px-4 py-2 text-white hover:bg-blue-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform flex items-center space-x-2 text-sm sm:text-base"
           >
             <span>+</span>
             <span>Nueva Orden</span>
@@ -123,12 +123,13 @@ export default function MaintenancePage() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           {error}
         </div>
       )}
 
-      <div className="rounded-lg bg-white shadow-lg overflow-hidden transition-shadow duration-300 hover:shadow-xl">
+      {/* Vista de tabla para desktop */}
+      <div className="hidden lg:block rounded-lg bg-white shadow-lg overflow-hidden transition-shadow duration-300 hover:shadow-xl">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
@@ -256,6 +257,135 @@ export default function MaintenancePage() {
           </table>
         </div>
       </div>
+
+      {/* Vista de cards para móvil/tablet */}
+      <div className="lg:hidden space-y-4">
+        {workOrders.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+            <p className="text-gray-500 text-lg">No hay órdenes de trabajo</p>
+          </div>
+        ) : (
+          workOrders.map((order, index) => (
+            <div
+              key={order.id}
+              className="bg-white rounded-xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 cursor-pointer animate-fade-in"
+              style={{ animationDelay: `${index * 50}ms` }}
+              onClick={() => router.push(`/maintenance/${order.id}`)}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="font-bold text-lg text-gray-900">{order.number}</div>
+                  <div className="text-sm text-gray-600 mt-1">
+                    {order.type === 'PREVENTIVE' ? 'Preventivo' : 'Correctivo'}
+                  </div>
+                </div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                    order.status === 'PENDING'
+                      ? 'bg-blue-100 text-blue-800'
+                      : order.status === 'IN_PROGRESS'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : order.status === 'COMPLETED'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {order.status === 'PENDING'
+                    ? 'Pendiente'
+                    : order.status === 'IN_PROGRESS'
+                    ? 'En Proceso'
+                    : order.status === 'COMPLETED'
+                    ? 'Completada'
+                    : order.status === 'CANCELLED'
+                    ? 'Cancelada'
+                    : order.status}
+                </span>
+              </div>
+
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-gray-600">Vehículo:</span>
+                  <span className="font-medium text-gray-900">{order.vehicle.plate}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-gray-600">Fecha:</span>
+                  <span className="font-medium text-gray-900">
+                    {new Date(order.createdAt).toLocaleDateString('es-ES')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-3 border-t">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/maintenance/${order.id}`);
+                  }}
+                  className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors duration-200 text-sm font-medium"
+                >
+                  Ver
+                </button>
+                {order.status !== 'COMPLETED' && order.status !== 'CANCELLED' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/maintenance/${order.id}/execute`);
+                    }}
+                    className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors duration-200 text-sm font-medium"
+                  >
+                    Ejecutar
+                  </button>
+                )}
+                {(order.status === 'PENDING' || order.status === 'IN_PROGRESS') && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCancelOrder(order.id, order.number);
+                    }}
+                    className="px-3 py-2 bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200 transition-colors duration-200 text-sm font-medium"
+                  >
+                    Cancelar
+                  </button>
+                )}
+                {(order.status === 'PENDING' || order.status === 'CANCELLED') && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteOrder(order.id, order.number);
+                    }}
+                    className="px-3 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors duration-200 text-sm font-medium"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="w-full sm:w-auto px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm sm:text-base"
+          >
+            Anterior
+          </button>
+          <span className="px-4 py-2 text-gray-700 text-sm sm:text-base">
+            Página {currentPage} de {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="w-full sm:w-auto px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm sm:text-base"
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -225,34 +225,34 @@ export default function VehiclesPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Flota</h1>
-        <p className="mt-2 text-gray-600">Administra todos los vehículos de la empresa</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Flota</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">Administra todos los vehículos de la empresa</p>
       </div>
 
       {/* Search and Filters */}
-      <div className="mb-6 space-y-4">
-        <div className="flex items-center space-x-4">
+      <div className="mb-4 sm:mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
           <div className="flex-1 relative">
             <input
               type="text"
               placeholder="🔍 Buscar por código, placa o conductor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 sm:py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
             />
-            <span className="absolute left-3 top-3.5 text-gray-400">🔍</span>
+            <span className="absolute left-3 top-2.5 sm:top-3.5 text-gray-400">🔍</span>
           </div>
           <button
             onClick={handleCreate}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg hover:scale-105 transform"
+            className="bg-orange-600 hover:bg-orange-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg hover:scale-105 transform text-sm sm:text-base whitespace-nowrap"
           >
             + Nuevo Vehículo
           </button>
         </div>
 
         {/* Status Tabs */}
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {[
             { value: 'ALL', label: 'Todos' },
             { value: 'ACTIVE', label: 'Activo' },
@@ -262,7 +262,7 @@ export default function VehiclesPage() {
             <button
               key={tab.value}
               onClick={() => setStatusFilter(tab.value)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-xs sm:text-sm ${
                 statusFilter === tab.value
                   ? 'bg-orange-600 text-white shadow-md'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -275,7 +275,7 @@ export default function VehiclesPage() {
       </div>
 
       {/* Vehicle Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredVehicles.length === 0 ? (
           <div className="col-span-full bg-white rounded-xl shadow-lg p-8 text-center">
             <p className="text-gray-500 text-lg">No hay vehículos registrados</p>
@@ -405,21 +405,21 @@ export default function VehiclesPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center space-x-2">
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className="w-full sm:w-auto px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm sm:text-base"
           >
             Anterior
           </button>
-          <span className="px-4 py-2 text-gray-700">
+          <span className="px-4 py-2 text-gray-700 text-sm sm:text-base">
             Página {currentPage} de {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className="w-full sm:w-auto px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm sm:text-base"
           >
             Siguiente
           </button>

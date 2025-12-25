@@ -13,12 +13,32 @@ export default function Layout({ children }: LayoutProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     if (userStr) {
       setUser(JSON.parse(userStr));
     }
+  }, []);
+
+  // Cerrar menú móvil al cambiar de ruta
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Ajustar sidebar según tamaño de pantalla
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const handleLogout = () => {
@@ -47,10 +67,20 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
+      {/* Overlay para móvil */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-50 ${
           sidebarOpen ? 'w-64' : 'w-20'
         } bg-gray-800 text-white transition-all duration-300 flex flex-col`}
       >
@@ -58,12 +88,20 @@ export default function Layout({ children }: LayoutProps) {
           <h1 className={`font-bold text-xl ${sidebarOpen ? 'block' : 'hidden'}`}>
             Control de Flotas
           </h1>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-700 rounded"
-          >
-            {sidebarOpen ? '←' : '→'}
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-gray-700 rounded hidden lg:block"
+            >
+              {sidebarOpen ? '←' : '→'}
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 hover:bg-gray-700 rounded lg:hidden"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         <nav className="flex-1 overflow-y-auto">
@@ -89,7 +127,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="p-4 border-t border-gray-700">
           {sidebarOpen && user && (
             <div className="mb-2">
-              <p className="text-sm text-gray-300">{user.email}</p>
+              <p className="text-sm text-gray-300 truncate">{user.email}</p>
               <p className="text-xs text-gray-400">
                 {user.roles && user.roles.length > 0 ? user.roles[0] : 'Usuario'}
               </p>
@@ -106,18 +144,26 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden w-full lg:w-auto">
         {/* Topbar */}
         <header className="bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6 py-4">
+          <div className="px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-gray-800">
-                {menuItems.find((item) => item.path === pathname)?.name || 'Sistema'}
-              </h2>
               <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <span className="text-2xl">☰</span>
+                </button>
+                <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 truncate">
+                  {menuItems.find((item) => item.path === pathname)?.name || 'Sistema'}
+                </h2>
+              </div>
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 {user && (
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-700">{user.email}</p>
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-medium text-gray-700 truncate max-w-[150px]">{user.email}</p>
                     <p className="text-xs text-gray-500">
                       {user.roles && user.roles.length > 0 ? user.roles[0] : 'Usuario'}
                     </p>
@@ -129,7 +175,7 @@ export default function Layout({ children }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6">{children}</main>
       </div>
     </div>
   );

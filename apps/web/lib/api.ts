@@ -1,9 +1,12 @@
 import axios from 'axios';
 
 function resolveApiUrl() {
-  // 1) Preferir variable de entorno (queda "horneada" en build)
+  // 1) Preferir variable de entorno (Next.js la inyecta en build como valor literal)
+  // En el navegador, process.env.NEXT_PUBLIC_* está disponible como string literal
   const envUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (envUrl && envUrl.trim()) return envUrl.trim().replace(/\/+$/, '');
+  if (envUrl && envUrl.trim() && envUrl !== 'undefined' && envUrl !== 'null') {
+    return envUrl.trim().replace(/\/+$/, '');
+  }
 
   // 2) Fallback seguro en navegador (evitar localhost en VPS)
   if (typeof window !== 'undefined') {
@@ -15,7 +18,7 @@ function resolveApiUrl() {
     }
   }
 
-  // 3) Último recurso para desarrollo local
+  // 3) Último recurso para desarrollo local - SIEMPRE usar puerto 4001
   return 'http://localhost:4001';
 }
 

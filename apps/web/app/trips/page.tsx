@@ -191,82 +191,82 @@ export default function TripsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Control de Viajes</h1>
-        <p className="mt-2 text-gray-600">Gestiona todos los viajes de la flota</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Control de Viajes</h1>
+        <p className="mt-2 text-sm sm:text-base text-gray-600">Gestiona todos los viajes de la flota</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform cursor-pointer" onClick={() => setDateFilter(new Date().toISOString().split('T')[0])}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-3 sm:p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform cursor-pointer" onClick={() => setDateFilter(new Date().toISOString().split('T')[0])}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-90">Viajes Hoy</p>
-              <p className="text-3xl font-bold">{stats.today}</p>
+              <p className="text-xs sm:text-sm opacity-90">Viajes Hoy</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stats.today}</p>
             </div>
-            <div className="text-4xl opacity-80">🔄</div>
+            <div className="text-3xl sm:text-4xl opacity-80">🔄</div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-3 sm:p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-90">En Ruta</p>
-              <p className="text-3xl font-bold">{stats.enRoute}</p>
+              <p className="text-xs sm:text-sm opacity-90">En Ruta</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stats.enRoute}</p>
             </div>
-            <div className="text-4xl opacity-80">▶️</div>
+            <div className="text-3xl sm:text-4xl opacity-80">▶️</div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-3 sm:p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-90">Completados</p>
-              <p className="text-3xl font-bold">{stats.completed}</p>
+              <p className="text-xs sm:text-sm opacity-90">Completados</p>
+              <p className="text-2xl sm:text-3xl font-bold">{stats.completed}</p>
             </div>
-            <div className="text-4xl opacity-80">✅</div>
+            <div className="text-3xl sm:text-4xl opacity-80">✅</div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-600 to-amber-700 rounded-xl p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
+        <div className="bg-gradient-to-br from-amber-600 to-amber-700 rounded-xl p-3 sm:p-4 text-white hover:shadow-xl transition-all duration-300 hover:scale-105 transform">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm opacity-90">Km Recorridos</p>
-              <p className="text-3xl font-bold">{stats.kmTraveled.toLocaleString('es-ES')}</p>
+              <p className="text-xs sm:text-sm opacity-90">Km Recorridos</p>
+              <p className="text-xl sm:text-3xl font-bold">{stats.kmTraveled.toLocaleString('es-ES')}</p>
             </div>
-            <div className="text-4xl opacity-80">🕐</div>
+            <div className="text-3xl sm:text-4xl opacity-80">🕐</div>
           </div>
         </div>
       </div>
 
       {/* Search and Actions */}
-      <div className="mb-6 flex flex-col md:flex-row gap-4 items-center">
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="flex-1 relative w-full">
           <input
             type="text"
             placeholder="🔍 Buscar por vehículo, conductor o destino..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-4 py-2 sm:py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
           />
-          <span className="absolute left-3 top-3.5 text-gray-400">🔍</span>
+          <span className="absolute left-3 top-2.5 sm:top-3.5 text-gray-400">🔍</span>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
           <input
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
           />
           <button
             onClick={handleImport}
-            className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="px-3 sm:px-4 py-2 sm:py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm sm:text-base whitespace-nowrap"
           >
             📥 Importar
           </button>
           <button
             onClick={() => router.push('/trips/new')}
-            className="px-6 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform font-medium"
+            className="px-4 sm:px-6 py-2 sm:py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200 hover:shadow-lg hover:scale-105 transform font-medium text-sm sm:text-base whitespace-nowrap"
           >
             + Nuevo Viaje
           </button>
@@ -274,7 +274,7 @@ export default function TripsPage() {
       </div>
 
       {/* Trip Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {filteredTrips.length === 0 ? (
           <div className="col-span-full bg-white rounded-xl shadow-lg p-8 text-center">
             <p className="text-gray-500 text-lg">No hay viajes registrados</p>
@@ -406,21 +406,21 @@ export default function TripsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-center space-x-2">
+        <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className="w-full sm:w-auto px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm sm:text-base"
           >
             Anterior
           </button>
-          <span className="px-4 py-2 text-gray-700">
+          <span className="px-4 py-2 text-gray-700 text-sm sm:text-base">
             Página {currentPage} de {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+            className="w-full sm:w-auto px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm sm:text-base"
           >
             Siguiente
           </button>
