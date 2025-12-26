@@ -108,6 +108,42 @@ export class TripsService {
       }
     }
 
+    // Validar driver1Id si se proporciona
+    if (createTripDto.driver1Id) {
+      // Verificar que el driver existe, pertenece a la compañía y no está eliminado
+      const driver = await this.prisma.driver.findFirst({
+        where: {
+          id: createTripDto.driver1Id,
+          companyId,
+          deletedAt: null,
+        },
+      });
+      if (!driver) {
+        throw new NotFoundException('El conductor especificado no existe o ha sido eliminado');
+      }
+    } else if (createTripDto.driver1Id === '') {
+      // Convertir string vacío a undefined
+      createTripDto.driver1Id = undefined;
+    }
+
+    // Validar driver2Id si se proporciona
+    if (createTripDto.driver2Id) {
+      // Verificar que el driver existe, pertenece a la compañía y no está eliminado
+      const driver = await this.prisma.driver.findFirst({
+        where: {
+          id: createTripDto.driver2Id,
+          companyId,
+          deletedAt: null,
+        },
+      });
+      if (!driver) {
+        throw new NotFoundException('El conductor secundario especificado no existe o ha sido eliminado');
+      }
+    } else if (createTripDto.driver2Id === '') {
+      // Convertir string vacío a undefined
+      createTripDto.driver2Id = undefined;
+    }
+
     // Validaciones
     if (createTripDto.kmEnd && createTripDto.kmStart && createTripDto.kmEnd < createTripDto.kmStart) {
       throw new BadRequestException('kmEnd debe ser mayor o igual a kmStart');
@@ -295,6 +331,46 @@ export class TripsService {
         if (trailerBody.category !== 'CUERPO_ARRASTRE') {
           throw new BadRequestException('El cuerpo de arrastre debe ser de categoría CUERPO_ARRASTRE');
         }
+      }
+    }
+
+    // Validar driver1Id si se actualiza
+    if (updateTripDto.driver1Id !== undefined) {
+      if (updateTripDto.driver1Id && updateTripDto.driver1Id !== existingTrip.driver1Id) {
+        // Verificar que el driver existe y no está eliminado
+        const driver = await this.prisma.driver.findFirst({
+          where: {
+            id: updateTripDto.driver1Id,
+            companyId,
+            deletedAt: null,
+          },
+        });
+        if (!driver) {
+          throw new NotFoundException('El conductor especificado no existe o ha sido eliminado');
+        }
+      } else if (updateTripDto.driver1Id === '' || updateTripDto.driver1Id === null) {
+        // Permitir establecer null o string vacío
+        updateTripDto.driver1Id = null;
+      }
+    }
+
+    // Validar driver2Id si se actualiza
+    if (updateTripDto.driver2Id !== undefined) {
+      if (updateTripDto.driver2Id && updateTripDto.driver2Id !== existingTrip.driver2Id) {
+        // Verificar que el driver existe y no está eliminado
+        const driver = await this.prisma.driver.findFirst({
+          where: {
+            id: updateTripDto.driver2Id,
+            companyId,
+            deletedAt: null,
+          },
+        });
+        if (!driver) {
+          throw new NotFoundException('El conductor secundario especificado no existe o ha sido eliminado');
+        }
+      } else if (updateTripDto.driver2Id === '' || updateTripDto.driver2Id === null) {
+        // Permitir establecer null o string vacío
+        updateTripDto.driver2Id = null;
       }
     }
 
