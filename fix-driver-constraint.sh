@@ -57,6 +57,70 @@ fi
 
 echo -e "\n${CYAN}🔍 Verificando estructura actual de la tabla trips...${NC}"
 
+# Primero, mostrar un diagnóstico completo
+echo -e "\n${CYAN}📊 DIAGNÓSTICO INICIAL${NC}"
+echo -e "${CYAN}============================================${NC}"
+
+DIAGNOSTIC_SCRIPT=$(cat <<'EOF'
+-- Diagnóstico completo de la estructura de trips
+SELECT '=== COLUMNAS DE DRIVER EN TRIPS ===' AS info;
+
+SELECT 
+    column_name,
+    data_type,
+    is_nullable,
+    column_default
+FROM information_schema.columns
+WHERE table_name = 'trips'
+AND column_name LIKE '%driver%'
+ORDER BY column_name;
+
+SELECT '=== CONSTRAINTS DE DRIVER EN TRIPS ===' AS info;
+
+SELECT 
+    conname AS constraint_name,
+    contype AS constraint_type,
+    CASE contype
+        WHEN 'f' THEN 'FOREIGN KEY'
+        WHEN 'p' THEN 'PRIMARY KEY'
+        WHEN 'u' THEN 'UNIQUE'
+        WHEN 'c' THEN 'CHECK'
+        ELSE contype::text
+    END AS type_description,
+    pg_get_constraintdef(oid) AS definition
+FROM pg_constraint
+WHERE conrelid = 'trips'::regclass
+AND conname LIKE '%driver%'
+ORDER BY conname;
+
+SELECT '=== TABLA DRIVERS ===' AS info;
+
+SELECT 
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = 'drivers'
+ORDER BY ordinal_position
+LIMIT 5;
+
+SELECT '=== MIGRACIONES APLICADAS ===' AS info;
+
+SELECT 
+    id,
+    migration_name,
+    finished_at,
+    applied_steps_count
+FROM _prisma_migrations
+ORDER BY finished_at DESC
+LIMIT 10;
+EOF
+)
+
+echo "$DIAGNOSTIC_SCRIPT" | $PSQL_CMD
+
+echo -e "\n${CYAN}🔄 Analizando problemas encontrados...${NC}"
+
 # Script SQL para corregir el problema
 SQL_SCRIPT=$(cat <<'EOF'
 -- ============================================
@@ -64,6 +128,13 @@ SQL_SCRIPT=$(cat <<'EOF'
 -- ============================================
 
 BEGIN;
+
+-- Verificación previa: Mostrar estado actual
+DO $$
+BEGIN
+    RAISE NOTICE '=== INICIANDO CORRECCIÓN DE CONSTRAINTS ===';
+    RAISE NOTICE 'Verificando estructura de la tabla trips...';
+END $$;
 
 -- 1. Verificar si existe el constraint incorrecto
 DO $$
@@ -222,25 +293,239 @@ BEGIN
     END IF;
 END $$;
 
--- 10. Mostrar constraints relacionados con driver
+-- 11. Verificación final y reporte
+DO $$
+DECLARE
+    driver1_constraint_exists boolean;
+    driver2_constraint_exists boolean;
+    driver1_column_exists boolean;
+    driver2_column_exists boolean;
+    total_constraints int;
+BEGIN
+    RAISE NOTICE '=== VERIFICACIÓN FINAL ===';
+    
+    -- Verificar columnas
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'trips' AND column_name = 'driver1_id'
+    ) INTO driver1_column_exists;
+    
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'trips' AND column_name = 'driver2_id'
+    ) INTO driver2_column_exists;
+    
+    -- Verificar constraints
+    SELECT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'trips_driver1_id_fkey' 
+        AND conrelid = 'trips'::regclass
+    ) INTO driver1_constraint_exists;
+    
+    SELECT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'trips_driver2_id_fkey' 
+        AND conrelid = 'trips'::regclass
+    ) INTO driver2_constraint_exists;
+    
+    -- Contar constraints incorrectos
+    SELECT COUNT(*) INTO total_constraints
+    FROM pg_constraint
+    WHERE conrelid = 'trips'::regclass
+    AND conname IN ('trips_driverl_id_fkey', 'trips_driver2l_id_fkey', 'trips_driver_id_fkey');
+    
+    RAISE NOTICE 'RESUMEN:';
+    RAISE NOTICE '  - Columna driver1_id existe: %', driver1_column_exists;
+    RAISE NOTICE '  - Columna driver2_id existe: %', driver2_column_exists;
+    RAISE NOTICE '  - Constraint trips_driver1_id_fkey existe: %', driver1_constraint_exists;
+    RAISE NOTICE '  - Constraint trips_driver2_id_fkey existe: %', driver2_constraint_exists;
+    RAISE NOTICE '  - Constraints incorrectos restantes: %', total_constraints;
+    
+    IF driver1_column_exists AND NOT driver1_constraint_exists THEN
+        RAISE WARNING '⚠️  La columna driver1_id existe pero no tiene constraint. Esto será corregido.';
+    END IF;
+    
+    IF driver2_column_exists AND NOT driver2_constraint_exists THEN
+        RAISE WARNING '⚠️  La columna driver2_id existe pero no tiene constraint. Esto será corregido.';
+    END IF;
+    
+    IF total_constraints > 0 THEN
+        RAISE WARNING '⚠️  Aún existen % constraints incorrectos', total_constraints;
+    END IF;
+END $$;
+
+-- 12. Mostrar estado final de constraints
+SELECT '=== CONSTRAINTS FINALES DE DRIVER ===' AS info;
+
 SELECT 
     conname AS constraint_name,
     contype AS constraint_type,
-    a.attname AS column_name
+    a.attname AS column_name,
+    pg_get_constraintdef(con.oid) AS definition
 FROM pg_constraint con
-JOIN pg_attribute a ON a.attnum = ANY(con.conkey)
+JOIN pg_attribute a ON a.attnum = ANY(con.conkey) AND a.attrelid = con.conrelid
 WHERE conrelid = 'trips'::regclass
 AND (a.attname LIKE '%driver%')
 AND con.contype = 'f'
 ORDER BY conname;
+
+-- 13. Verificar índices relacionados
+SELECT '=== ÍNDICES DE DRIVER EN TRIPS ===' AS info;
+
+SELECT 
+    indexname,
+    indexdef
+FROM pg_indexes
+WHERE tablename = 'trips'
+AND indexdef LIKE '%driver%'
+ORDER BY indexname;
 EOF
 )
+
+# Verificar estructura esperada vs actual
+echo -e "\n${CYAN}📋 Verificando estructura esperada vs actual...${NC}"
+
+VERIFICATION_SCRIPT=$(cat <<'EOF'
+-- Verificar que las columnas esperadas existen
+SELECT 
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'trips' AND column_name = 'driver1_id'
+        ) THEN '✅ driver1_id existe'
+        ELSE '❌ driver1_id NO existe'
+    END AS driver1_column_status,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'trips' AND column_name = 'driver2_id'
+        ) THEN '✅ driver2_id existe'
+        ELSE '⚠️  driver2_id NO existe (opcional)'
+    END AS driver2_column_status,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'trips_driver1_id_fkey' 
+            AND conrelid = 'trips'::regclass
+        ) THEN '✅ trips_driver1_id_fkey existe'
+        ELSE '❌ trips_driver1_id_fkey NO existe'
+    END AS driver1_constraint_status,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'trips_driver2_id_fkey' 
+            AND conrelid = 'trips'::regclass
+        ) THEN '✅ trips_driver2_id_fkey existe'
+        ELSE '⚠️  trips_driver2_id_fkey NO existe (si driver2_id existe, esto debería crearse)'
+    END AS driver2_constraint_status;
+
+-- Verificar si existen columnas o constraints incorrectos
+SELECT 
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'trips' AND column_name IN ('driverl_id', 'driver2l_id', 'driver_id')
+        ) THEN '⚠️  Existen columnas con nombres incorrectos'
+        ELSE '✅ No hay columnas con nombres incorrectos'
+    END AS incorrect_columns_status,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conrelid = 'trips'::regclass
+            AND conname IN ('trips_driverl_id_fkey', 'trips_driver2l_id_fkey', 'trips_driver_id_fkey')
+        ) THEN '⚠️  Existen constraints con nombres incorrectos'
+        ELSE '✅ No hay constraints con nombres incorrectos'
+    END AS incorrect_constraints_status;
+EOF
+)
+
+echo "$VERIFICATION_SCRIPT" | $PSQL_CMD
+
+echo -e "\n${CYAN}🔄 Ejecutando correcciones...${NC}"
+
+# Ejecutar el script SQL
+if echo "$SQL_SCRIPT" | $PSQL_CMD; then
 
 # Ejecutar el script SQL
 echo -e "${CYAN}🔄 Ejecutando correcciones...${NC}"
 
 if echo "$SQL_SCRIPT" | $PSQL_CMD; then
     echo -e "\n${GREEN}✅ Correcciones aplicadas exitosamente${NC}"
+    
+    # Verificación final detallada
+    echo -e "\n${CYAN}📋 VERIFICACIÓN FINAL DETALLADA${NC}"
+    echo -e "${CYAN}============================================${NC}"
+    
+    FINAL_VERIFICATION=$(cat <<'EOF'
+-- Verificación completa final
+SELECT '=== ESTADO FINAL DE COLUMNAS ===' AS info;
+
+SELECT 
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = 'trips'
+AND column_name LIKE '%driver%'
+ORDER BY column_name;
+
+SELECT '=== ESTADO FINAL DE CONSTRAINTS ===' AS info;
+
+SELECT 
+    conname AS constraint_name,
+    CASE contype
+        WHEN 'f' THEN 'FOREIGN KEY'
+        ELSE contype::text
+    END AS constraint_type,
+    pg_get_constraintdef(oid) AS definition
+FROM pg_constraint
+WHERE conrelid = 'trips'::regclass
+AND (
+    conname LIKE '%driver%' 
+    OR oid IN (
+        SELECT conid FROM pg_constraint 
+        WHERE conrelid = 'trips'::regclass 
+        AND conname IN (
+            SELECT conname FROM pg_constraint con
+            JOIN pg_attribute a ON a.attnum = ANY(con.conkey)
+            WHERE con.conrelid = 'trips'::regclass
+            AND a.attname LIKE '%driver%'
+        )
+    )
+)
+ORDER BY conname;
+
+SELECT '=== VERIFICACIÓN DE INTEGRIDAD ===' AS info;
+
+SELECT 
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'trips_driver1_id_fkey' 
+            AND conrelid = 'trips'::regclass
+        ) THEN '✅ trips_driver1_id_fkey correcto'
+        ELSE '❌ trips_driver1_id_fkey FALTA'
+    END AS driver1_status,
+    CASE 
+        WHEN EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'trips' AND column_name = 'driver2_id'
+        ) THEN
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1 FROM pg_constraint 
+                    WHERE conname = 'trips_driver2_id_fkey' 
+                    AND conrelid = 'trips'::regclass
+                ) THEN '✅ trips_driver2_id_fkey correcto'
+                ELSE '⚠️  trips_driver2_id_fkey FALTA (columna existe)'
+            END
+        ELSE '⏭️  driver2_id no existe (normal)'
+    END AS driver2_status;
+EOF
+)
+
+    echo "$FINAL_VERIFICATION" | $PSQL_CMD
+    
     echo -e "\n${CYAN}📋 Verificando resultados...${NC}"
     
     # Verificar que los constraints correctos existen
@@ -282,14 +567,52 @@ if echo "$SQL_SCRIPT" | $PSQL_CMD; then
         echo -e "${YELLOW}⚠️  El constraint incorrecto todavía existe.${NC}"
     fi
     
+    # Verificar migraciones
+    echo -e "\n${CYAN}📦 Verificando migraciones aplicadas...${NC}"
+    MIGRATION_CHECK=$(cat <<'EOF'
+SELECT 
+    migration_name,
+    finished_at,
+    CASE 
+        WHEN finished_at IS NULL THEN '⚠️  No aplicada'
+        ELSE '✅ Aplicada'
+    END AS status
+FROM _prisma_migrations
+WHERE migration_name LIKE '%driver%' 
+   OR migration_name LIKE '%trip%'
+   OR migration_name LIKE '%init%'
+ORDER BY finished_at DESC NULLS LAST
+LIMIT 5;
+EOF
+)
+    echo "$MIGRATION_CHECK" | $PSQL_CMD
+    
+    # Verificar que la tabla drivers existe y tiene datos
+    echo -e "\n${CYAN}👥 Verificando tabla drivers...${NC}"
+    DRIVERS_CHECK=$(cat <<'EOF'
+SELECT 
+    CASE 
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'drivers') 
+        THEN '✅ Tabla drivers existe'
+        ELSE '❌ Tabla drivers NO existe'
+    END AS drivers_table_status,
+    (SELECT COUNT(*)::text || ' registros' FROM drivers) AS drivers_count;
+EOF
+)
+    echo "$DRIVERS_CHECK" | $PSQL_CMD
+    
     echo -e "\n${GREEN}============================================${NC}"
     echo -e "${GREEN}✨ Corrección completada${NC}"
     echo -e "${GREEN}============================================${NC}"
     echo -e "\n${CYAN}💡 Próximos pasos:${NC}"
     echo -e "${NC}   1. Reinicia el contenedor de la API:"
-    echo -e "${NC}      docker-compose restart api"
+    echo -e "${NC}      $DOCKER_COMPOSE_CMD restart api"
     echo -e "\n${NC}   2. Verifica los logs:"
-    echo -e "${NC}      docker-compose logs -f api"
+    echo -e "${NC}      $DOCKER_COMPOSE_CMD logs -f api"
+    echo -e "\n${NC}   3. Si el problema persiste, ejecuta:"
+    echo -e "${NC}      $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
+    echo -e "\n${NC}   4. Regenera Prisma Client:"
+    echo -e "${NC}      $DOCKER_COMPOSE_CMD exec api npx prisma generate"
     
 else
     echo -e "\n${RED}❌ Error al ejecutar las correcciones${NC}"
