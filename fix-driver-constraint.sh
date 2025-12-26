@@ -150,7 +150,79 @@ WHERE table_name = 'trips'
 AND column_name LIKE '%driver%'
 ORDER BY column_name;
 
--- 7. Mostrar constraints relacionados con driver
+-- 7. Corregir trips_driver2_id_fkey si tiene el mismo problema
+DO $$
+DECLARE
+    constraint_exists boolean;
+    column_exists boolean;
+BEGIN
+    -- Verificar si existe el constraint trips_driver2l_id_fkey o trips_driver2_id_fkey incorrecto
+    SELECT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname IN ('trips_driver2l_id_fkey', 'trips_driver_id_fkey')
+    ) INTO constraint_exists;
+    
+    -- Verificar si existe la columna driver2l_id o driver_id
+    SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'trips' 
+        AND column_name IN ('driver2l_id', 'driver_id')
+    ) INTO column_exists;
+    
+    -- Si existe el constraint incorrecto, eliminarlo
+    IF constraint_exists THEN
+        RAISE NOTICE 'Eliminando constraints incorrectos de driver2...';
+        ALTER TABLE trips DROP CONSTRAINT IF EXISTS trips_driver2l_id_fkey;
+        ALTER TABLE trips DROP CONSTRAINT IF EXISTS trips_driver_id_fkey;
+    END IF;
+    
+    -- Si existe la columna con nombre incorrecto, renombrarla
+    IF column_exists THEN
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'trips' AND column_name = 'driver2l_id'
+        ) THEN
+            RAISE NOTICE 'Renombrando columna driver2l_id a driver2_id...';
+            ALTER TABLE trips RENAME COLUMN driver2l_id TO driver2_id;
+        END IF;
+        IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'trips' AND column_name = 'driver_id'
+        ) THEN
+            RAISE NOTICE 'Renombrando columna driver_id a driver1_id...';
+            ALTER TABLE trips RENAME COLUMN driver_id TO driver1_id;
+        END IF;
+    END IF;
+END $$;
+
+-- 8. Eliminar el constraint correcto de driver2 si existe (para recrearlo limpio)
+ALTER TABLE trips DROP CONSTRAINT IF EXISTS trips_driver2_id_fkey;
+
+-- 9. Verificar que la columna driver2_id existe y crear el constraint
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'trips' 
+        AND column_name = 'driver2_id'
+    ) THEN
+        RAISE NOTICE 'Creando constraint trips_driver2_id_fkey...';
+        
+        -- Crear el constraint correcto para driver2
+        ALTER TABLE trips 
+        ADD CONSTRAINT trips_driver2_id_fkey 
+        FOREIGN KEY (driver2_id) 
+        REFERENCES drivers(id) 
+        ON DELETE SET NULL 
+        ON UPDATE CASCADE;
+        
+        RAISE NOTICE '✅ Constraint trips_driver2_id_fkey creado correctamente';
+    ELSE
+        RAISE NOTICE 'ℹ️  La columna driver2_id no existe, omitiendo constraint de driver2';
+    END IF;
+END $$;
+
+-- 10. Mostrar constraints relacionados con driver
 SELECT 
     conname AS constraint_name,
     contype AS constraint_type,
@@ -171,22 +243,43 @@ if echo "$SQL_SCRIPT" | $PSQL_CMD; then
     echo -e "\n${GREEN}✅ Correcciones aplicadas exitosamente${NC}"
     echo -e "\n${CYAN}📋 Verificando resultados...${NC}"
     
-    # Verificar que el constraint correcto existe
-    VERIFY_QUERY="SELECT conname FROM pg_constraint WHERE conname = 'trips_driver1_id_fkey' AND conrelid = 'trips'::regclass;"
+    # Verificar que los constraints correctos existen
+    VERIFY_QUERY_1="SELECT conname FROM pg_constraint WHERE conname = 'trips_driver1_id_fkey' AND conrelid = 'trips'::regclass;"
+    VERIFY_QUERY_2="SELECT conname FROM pg_constraint WHERE conname = 'trips_driver2_id_fkey' AND conrelid = 'trips'::regclass;"
     
-    if echo "$VERIFY_QUERY" | $PSQL_CMD -t | grep -q "trips_driver1_id_fkey"; then
-        echo -e "${GREEN}✅ El constraint correcto existe${NC}"
+    if echo "$VERIFY_QUERY_1" | $PSQL_CMD -t | grep -q "trips_driver1_id_fkey"; then
+        echo -e "${GREEN}✅ El constraint trips_driver1_id_fkey existe${NC}"
     else
-        echo -e "${YELLOW}⚠️  No se pudo verificar el constraint. Por favor, revisa manualmente.${NC}"
+        echo -e "${YELLOW}⚠️  No se pudo verificar el constraint driver1. Por favor, revisa manualmente.${NC}"
     fi
     
-    # Verificar que no existe el constraint incorrecto
-    VERIFY_INCORRECT="SELECT conname FROM pg_constraint WHERE conname = 'trips_driverl_id_fkey';"
+    if echo "$VERIFY_QUERY_2" | $PSQL_CMD -t | grep -q "trips_driver2_id_fkey"; then
+        echo -e "${GREEN}✅ El constraint trips_driver2_id_fkey existe${NC}"
+    else
+        echo -e "${YELLOW}ℹ️  El constraint driver2 no existe (puede ser normal si no se usa driver2)${NC}"
+    fi
     
-    if ! echo "$VERIFY_INCORRECT" | $PSQL_CMD -t | grep -q "trips_driverl_id_fkey"; then
-        echo -e "${GREEN}✅ El constraint incorrecto no existe${NC}"
+    # Verificar que no existen los constraints incorrectos
+    VERIFY_INCORRECT_1="SELECT conname FROM pg_constraint WHERE conname = 'trips_driverl_id_fkey';"
+    VERIFY_INCORRECT_2="SELECT conname FROM pg_constraint WHERE conname = 'trips_driver2l_id_fkey';"
+    VERIFY_INCORRECT_3="SELECT conname FROM pg_constraint WHERE conname = 'trips_driver_id_fkey';"
+    
+    if ! echo "$VERIFY_INCORRECT_1" | $PSQL_CMD -t | grep -q "trips_driverl_id_fkey"; then
+        echo -e "${GREEN}✅ El constraint incorrecto trips_driverl_id_fkey no existe${NC}"
     else
         echo -e "${YELLOW}⚠️  El constraint incorrecto todavía existe. Puede ser necesario ejecutar el script nuevamente.${NC}"
+    fi
+    
+    if ! echo "$VERIFY_INCORRECT_2" | $PSQL_CMD -t | grep -q "trips_driver2l_id_fkey"; then
+        echo -e "${GREEN}✅ El constraint incorrecto trips_driver2l_id_fkey no existe${NC}"
+    else
+        echo -e "${YELLOW}⚠️  El constraint incorrecto todavía existe.${NC}"
+    fi
+    
+    if ! echo "$VERIFY_INCORRECT_3" | $PSQL_CMD -t | grep -q "trips_driver_id_fkey"; then
+        echo -e "${GREEN}✅ El constraint incorrecto trips_driver_id_fkey no existe${NC}"
+    else
+        echo -e "${YELLOW}⚠️  El constraint incorrecto todavía existe.${NC}"
     fi
     
     echo -e "\n${GREEN}============================================${NC}"
