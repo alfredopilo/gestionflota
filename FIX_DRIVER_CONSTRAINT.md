@@ -2,18 +2,54 @@
 
 ## Problema
 
-Error de clave foránea: `Foreign key constraint violated: 'trips_driverl_id_fkey'`
+Error de clave foránea: `Foreign key constraint violated: 'trips_driver1_id_fkey'` o `'trips_driver_id_fkey'`
 
 Este error ocurre cuando:
 - La base de datos tiene un constraint con nombre incorrecto (`driverl_id` en lugar de `driver1_id`)
 - O la columna tiene un nombre incorrecto
 - El constraint no está correctamente configurado
+- **Hay trips con driver IDs que no existen en la tabla drivers** (causa más común)
+- Se están enviando strings vacíos en lugar de NULL
 
-## Solución
+## Solución Recomendada (Script Completo)
 
-Ejecuta el script `fix-driver-constraint.sh` que corrige automáticamente estos problemas.
+Para resolver el problema completo, usa el script `fix-driver-data-and-constraints.sh`:
 
-### Uso Rápido
+```bash
+chmod +x fix-driver-data-and-constraints.sh
+./fix-driver-data-and-constraints.sh
+```
+
+Este script:
+1. ✅ Encuentra trips con driver IDs inválidos
+2. ✅ Limpia los datos inválidos (pone NULL)
+3. ✅ Corrige nombres de columnas incorrectos
+4. ✅ Elimina y recrea todos los constraints
+5. ✅ Verifica migraciones
+6. ✅ Muestra reporte completo
+
+## Solución Alternativa (Solo Constraints)
+
+Si solo necesitas corregir los constraints (sin limpiar datos), usa:
+
+```bash
+chmod +x fix-driver-constraint.sh
+./fix-driver-constraint.sh
+```
+
+### Uso Rápido - Script Completo (RECOMENDADO)
+
+```bash
+# 1. Dar permisos de ejecución
+chmod +x fix-driver-data-and-constraints.sh
+
+# 2. Ejecutar el script
+./fix-driver-data-and-constraints.sh
+```
+
+Este script es el más completo y resuelve tanto el problema de datos inválidos como el de constraints.
+
+### Uso Rápido - Solo Constraints
 
 ```bash
 # 1. Dar permisos de ejecución
@@ -22,6 +58,8 @@ chmod +x fix-driver-constraint.sh
 # 2. Ejecutar el script
 ./fix-driver-constraint.sh
 ```
+
+Usa este script solo si ya limpiaste los datos inválidos manualmente.
 
 ### Variables de Entorno
 
