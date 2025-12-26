@@ -5,15 +5,23 @@ Este documento explica cómo usar el script de actualización automatizada del s
 ## 📋 Requisitos Previos
 
 - Docker y Docker Compose instalados
-- PowerShell 5.1 o superior (incluido en Windows 10/11)
 - Acceso a la raíz del proyecto
+- **Windows**: PowerShell 5.1 o superior
+- **Linux/VPS**: Bash shell
 
 ## 🚀 Uso Básico
 
-### Actualización Completa (Recomendado)
+### Para Windows (PowerShell)
 
 ```powershell
 .\update.ps1
+```
+
+### Para Linux/VPS (Bash)
+
+```bash
+chmod +x update.sh
+./update.sh
 ```
 
 Este comando:
@@ -28,40 +36,57 @@ Este comando:
 
 ### Especificar IP Directamente
 
+**Windows:**
 ```powershell
 .\update.ps1 -IPAddress 192.168.1.100
+.\update.ps1 -IPAddress mi-servidor.com
 ```
 
-O con un dominio:
-
-```powershell
-.\update.ps1 -IPAddress mi-servidor.com
+**Linux/VPS:**
+```bash
+./update.sh -i 192.168.1.100
+./update.sh --ip mi-servidor.com
 ```
 
 ### Actualización Rápida (Sin cambiar IP)
 
+**Windows:**
 ```powershell
 .\update.ps1 -SkipIPPrompt
 ```
 
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip
+```
+
 ### Actualización Sin Reconstruir Imágenes
 
-Si solo cambiaste código y no dependencias:
-
+**Windows:**
 ```powershell
 .\update.ps1 -SkipBuild
 ```
 
+**Linux/VPS:**
+```bash
+./update.sh --skip-build
+```
+
 ### Solo Aplicar Migraciones
 
-Si solo necesitas aplicar migraciones sin reconstruir:
-
+**Windows:**
 ```powershell
 .\update.ps1 -SkipIPPrompt -SkipBuild -SkipPrisma
 ```
 
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip --skip-build --skip-prisma
+```
+
 ## ⚙️ Opciones Disponibles
 
+### Windows (PowerShell)
 | Opción | Descripción |
 |--------|-------------|
 | `-IPAddress <ip>` | Especifica la IP o dominio directamente |
@@ -70,32 +95,64 @@ Si solo necesitas aplicar migraciones sin reconstruir:
 | `-SkipBuild` | No reconstruye imágenes Docker |
 | `-Help` | Muestra la ayuda del script |
 
+### Linux/VPS (Bash)
+| Opción | Descripción |
+|--------|-------------|
+| `-i, --ip <ip>` | Especifica la IP o dominio directamente |
+| `-s, --skip-ip` | No solicita IP, usa valores del .env |
+| `--skip-prisma` | No regenera Prisma Client |
+| `--skip-build` | No reconstruye imágenes Docker |
+| `-h, --help` | Muestra la ayuda del script |
+
 ## 📝 Ejemplos de Uso
 
 ### Ejemplo 1: Primera Instalación en Servidor Nuevo
 
+**Windows:**
 ```powershell
-# El script pedirá la IP del servidor
 .\update.ps1
+```
+
+**Linux/VPS:**
+```bash
+chmod +x update.sh
+./update.sh
 ```
 
 ### Ejemplo 2: Actualización Después de Cambios de Código
 
+**Windows:**
 ```powershell
-# Reconstruye todo sin cambiar la configuración
 .\update.ps1 -SkipIPPrompt
+```
+
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip
 ```
 
 ### Ejemplo 3: Cambio de IP del Servidor
 
+**Windows:**
 ```powershell
 .\update.ps1 -IPAddress 192.168.1.50
 ```
 
+**Linux/VPS:**
+```bash
+./update.sh -i 192.168.1.50
+```
+
 ### Ejemplo 4: Solo Aplicar Migraciones Nuevas
 
+**Windows:**
 ```powershell
 .\update.ps1 -SkipIPPrompt -SkipBuild -SkipPrisma
+```
+
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip --skip-build --skip-prisma
 ```
 
 ## 🔍 Verificación Post-Actualización
@@ -103,18 +160,24 @@ Si solo necesitas aplicar migraciones sin reconstruir:
 Después de ejecutar el script, verifica:
 
 1. **Estado de contenedores:**
-   ```powershell
+   ```bash
    docker-compose ps
+   # O si usas Docker Compose v2:
+   docker compose ps
    ```
 
 2. **Logs de la API:**
-   ```powershell
+   ```bash
    docker-compose logs -f api
+   # O:
+   docker compose logs -f api
    ```
 
 3. **Logs del Frontend:**
-   ```powershell
+   ```bash
    docker-compose logs -f web
+   # O:
+   docker compose logs -f web
    ```
 
 4. **Acceder al sistema:**
@@ -148,8 +211,9 @@ Aplica las migraciones manualmente:
 docker-compose exec api npx prisma migrate deploy
 ```
 
-### Problemas con Permisos de PowerShell
+### Problemas con Permisos
 
+**Windows (PowerShell):**
 Si el script no se ejecuta, verifica la política de ejecución:
 ```powershell
 Get-ExecutionPolicy
@@ -159,6 +223,13 @@ Si es `Restricted`, cámbiala temporalmente:
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
 .\update.ps1
+```
+
+**Linux/VPS (Bash):**
+Si el script no se ejecuta, dale permisos de ejecución:
+```bash
+chmod +x update.sh
+./update.sh
 ```
 
 ### Contenedores No Inician
@@ -172,13 +243,26 @@ docker-compose logs postgres
 
 ### Puerto en Uso
 
-Si un puerto está en uso, detén el proceso:
+**Windows (PowerShell):**
 ```powershell
 # Para el puerto 4001 (API)
 Get-NetTCPConnection -LocalPort 4001 | Select-Object -ExpandProperty OwningProcess | Stop-Process -Force
 
 # Para el puerto 4000 (Web)
 Get-NetTCPConnection -LocalPort 4000 | Select-Object -ExpandProperty OwningProcess | Stop-Process -Force
+```
+
+**Linux/VPS:**
+```bash
+# Para el puerto 4001 (API)
+sudo lsof -ti:4001 | xargs kill -9
+
+# Para el puerto 4000 (Web)
+sudo lsof -ti:4000 | xargs kill -9
+
+# O usar fuser:
+sudo fuser -k 4001/tcp
+sudo fuser -k 4000/tcp
 ```
 
 ## 📦 Qué Hace el Script
@@ -198,30 +282,50 @@ El script ejecuta los siguientes pasos en orden:
 
 ### Después de Agregar Nuevas Funcionalidades
 
+**Windows:**
 ```powershell
-# Reconstruye todo para incluir los cambios
 .\update.ps1 -SkipIPPrompt
+```
+
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip
 ```
 
 ### Después de Modificar el Schema de Prisma
 
+**Windows:**
 ```powershell
-# Reconstruye y aplica migraciones
 .\update.ps1 -SkipIPPrompt
+```
+
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip
 ```
 
 ### Cambio de Servidor o IP
 
+**Windows:**
 ```powershell
-# Especifica la nueva IP
 .\update.ps1 -IPAddress 192.168.1.200
+```
+
+**Linux/VPS:**
+```bash
+./update.sh -i 192.168.1.200
 ```
 
 ### Actualización Rápida (Solo Código)
 
+**Windows:**
 ```powershell
-# Si solo cambiaste archivos del frontend/backend sin tocar dependencias
 .\update.ps1 -SkipIPPrompt -SkipBuild -SkipPrisma
+```
+
+**Linux/VPS:**
+```bash
+./update.sh --skip-ip --skip-build --skip-prisma
 ```
 
 ## 💡 Tips
