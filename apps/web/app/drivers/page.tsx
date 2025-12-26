@@ -104,9 +104,31 @@ export default function DriversPage() {
 
       if (selectedDriver) {
         // Actualizar usuario existente
-        // Nota: El backend actual no tiene endpoint de actualización, solo creación
-        // Por ahora, solo podemos crear nuevos
-        alert('La funcionalidad de edición estará disponible pronto');
+        const updatePayload: any = {
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+        };
+
+        if (payload.phone !== undefined) {
+          updatePayload.phone = payload.phone || null;
+        }
+
+        // Solo actualizar contraseña si se proporciona
+        if (payload.password && payload.password.trim() !== '') {
+          updatePayload.password = payload.password;
+        }
+
+        await api.patch(`/admin/users/${selectedDriver.id}`, updatePayload);
+
+        // Actualizar roles si es necesario
+        if (payload.roleIds && payload.roleIds.length > 0) {
+          await api.put(`/admin/users/${selectedDriver.id}/roles`, {
+            roleIds: payload.roleIds,
+          });
+        }
+
+        setIsModalOpen(false);
+        loadData();
         return;
       } else {
         // Validar que tenemos al menos un rol
@@ -136,14 +158,15 @@ export default function DriversPage() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('¿Está seguro de eliminar este chofer?')) return;
+    if (!confirm('¿Está seguro de eliminar este chofer? Esta acción marcará al chofer como inactivo.')) return;
 
     try {
-      // Nota: El backend actual no tiene endpoint de eliminación
-      alert('La funcionalidad de eliminación estará disponible pronto');
-    } catch (error) {
+      await api.delete(`/admin/users/${id}`);
+      loadData();
+    } catch (error: any) {
       console.error('Error deleting driver:', error);
-      alert('Error al eliminar el chofer');
+      const errorMessage = error.response?.data?.message || 'Error al eliminar el chofer';
+      alert(errorMessage);
     }
   };
 
@@ -318,22 +341,25 @@ function DriverModal({
       return;
     }
 
+    // Validar contraseña solo si es nuevo usuario o si se está cambiando
     if (!driver && !formData.password) {
-      setError('La contraseña es requerida');
+      setError('La contraseña es requerida para nuevos usuarios');
       setLoading(false);
       return;
     }
 
-    if (formData.password && formData.password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      setLoading(false);
-      return;
-    }
+    if (formData.password && formData.password.length > 0) {
+      if (formData.password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres');
+        setLoading(false);
+        return;
+      }
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      setLoading(false);
-      return;
+      if (formData.password !== formData.confirmPassword) {
+        setError('Las contraseñas no coinciden');
+        setLoading(false);
+        return;
+      }
     }
 
     if (!formData.firstName || !formData.lastName) {
@@ -432,37 +458,35 @@ function DriverModal({
               />
             </div>
 
-            {!driver && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Contraseña *
-                    </label>
-                    <input
-                      type="password"
-                      required={!driver}
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Contraseña {driver ? '(dejar vacío para no cambiar)' : '*'}
+                </label>
+                <input
+                  type="password"
+                  required={!driver}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={driver ? 'Solo llenar si desea cambiar' : ''}
+                />
+              </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirmar Contraseña *
-                    </label>
-                    <input
-                      type="password"
-                      required={!driver}
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirmar Contraseña {driver ? '(si cambió la contraseña)' : '*'}
+                </label>
+                <input
+                  type="password"
+                  required={!driver && formData.password.length > 0}
+                  value={formData.confirmPassword}
+                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={driver ? 'Solo si cambió la contraseña' : ''}
+                />
+              </div>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

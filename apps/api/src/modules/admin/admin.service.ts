@@ -146,6 +146,114 @@ export class AdminService {
     }
   }
 
+  async getUser(userId: string, companyId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        companyId,
+        deletedAt: null,
+      },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return {
+      ...user,
+      roles: user.userRoles.map((ur) => ur.role.code),
+    };
+  }
+
+  async updateUser(
+    userId: string,
+    updateData: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string;
+      password?: string;
+      isActive?: boolean;
+    },
+    companyId: string,
+  ) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        companyId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const updatePayload: any = {};
+
+    if (updateData.firstName !== undefined) {
+      updatePayload.firstName = updateData.firstName;
+    }
+    if (updateData.lastName !== undefined) {
+      updatePayload.lastName = updateData.lastName;
+    }
+    if (updateData.phone !== undefined) {
+      updatePayload.phone = updateData.phone || null;
+    }
+    if (updateData.isActive !== undefined) {
+      updatePayload.isActive = updateData.isActive;
+    }
+    if (updateData.password) {
+      updatePayload.passwordHash = await bcrypt.hash(updateData.password, 10);
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: updatePayload,
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...updatedUser,
+      roles: updatedUser.userRoles.map((ur) => ur.role.code),
+    };
+  }
+
+  async deleteUser(userId: string, companyId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        companyId,
+        deletedAt: null,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Soft delete
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+      },
+    });
+  }
+
   async updateUserRoles(userId: string, roleIds: string[], companyId: string) {
     const user = await this.prisma.user.findFirst({
       where: {

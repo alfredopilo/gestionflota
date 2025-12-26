@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Put, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserRolesDto } from './dto/update-user-roles.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -38,6 +39,28 @@ export class AdminController {
     } catch (error: any) {
       throw error;
     }
+  }
+
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Obtener usuario por ID' })
+  getUser(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.adminService.getUser(id, user.companyId);
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Actualizar usuario' })
+  updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.adminService.updateUser(id, updateUserDto, user.companyId);
+  }
+
+  @Delete('users/:id')
+  @ApiOperation({ summary: 'Eliminar usuario (soft delete)' })
+  deleteUser(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.adminService.deleteUser(id, user.companyId);
   }
 
   @Put('users/:id/roles')
