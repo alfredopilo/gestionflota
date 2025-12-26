@@ -1,6 +1,6 @@
 # 🚀 Script de Actualización Rápida
 
-## Uso Inmediato
+## Para Windows (PowerShell)
 
 ```powershell
 # Opción 1: Actualización completa (recomendado para primera vez)
@@ -11,6 +11,22 @@
 
 # Opción 3: Actualización rápida (sin cambiar configuración)
 .\update.ps1 -SkipIPPrompt
+```
+
+## Para Linux/VPS (Bash)
+
+```bash
+# Primero, dar permisos de ejecución
+chmod +x update.sh
+
+# Opción 1: Actualización completa (recomendado para primera vez)
+./update.sh
+
+# Opción 2: Especificar IP directamente
+./update.sh -i 192.168.1.100
+
+# Opción 3: Actualización rápida (sin cambiar configuración)
+./update.sh --skip-ip
 ```
 
 ## ¿Qué Hace?
