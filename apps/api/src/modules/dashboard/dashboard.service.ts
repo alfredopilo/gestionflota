@@ -423,7 +423,7 @@ export class DashboardService {
         status: 'ACTIVE',
       },
       include: {
-        trips: {
+        tripsAsVehicle: {
           where: {
             date: { gte: thirtyDaysAgo },
           },
@@ -433,7 +433,8 @@ export class DashboardService {
     });
 
     for (const vehicle of inactiveVehicles) {
-      if (vehicle.trips.length === 0) {
+      const totalTrips = (vehicle.tripsAsVehicle || []).length;
+      if (totalTrips === 0) {
         alerts.push({
           type: 'VEHICLE_INACTIVE',
           severity: 'INFO',

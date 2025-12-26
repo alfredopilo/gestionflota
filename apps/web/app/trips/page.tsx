@@ -18,6 +18,15 @@ interface Trip {
   vehicle: {
     id: string;
     plate: string;
+    brand?: string;
+    model?: string;
+  };
+  trailerBody?: {
+    id: string;
+    plate: string;
+    brand?: string;
+    model?: string;
+    type?: string;
   };
   driver1?: {
     id: string;
@@ -132,6 +141,7 @@ export default function TripsPage() {
     const matchesSearch =
       !searchTerm ||
       trip.vehicle.plate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (trip.trailerBody?.plate && trip.trailerBody.plate.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (trip.route?.name && trip.route.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (trip.driver1?.firstName && trip.driver1.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (trip.driver1?.lastName && trip.driver1.lastName.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -332,6 +342,27 @@ export default function TripsPage() {
                       <div className="text-sm font-semibold text-gray-900">{destination}</div>
                     </div>
                   </div>
+                </div>
+
+                {/* Vehicle and Trailer Body */}
+                <div className="mb-4 space-y-2">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <span>🚗</span>
+                    <span className="text-gray-900 font-medium">
+                      {trip.vehicle.plate}
+                      {trip.vehicle.brand && trip.vehicle.model && ` - ${trip.vehicle.brand} ${trip.vehicle.model}`}
+                    </span>
+                  </div>
+                  {trip.trailerBody && (
+                    <div className="flex items-center space-x-2 text-sm ml-6">
+                      <span>🚛</span>
+                      <span className="text-gray-700">
+                        {trip.trailerBody.plate}
+                        {trip.trailerBody.brand && trip.trailerBody.model && ` - ${trip.trailerBody.brand} ${trip.trailerBody.model}`}
+                        {trip.trailerBody.type && ` (${trip.trailerBody.type})`}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Driver */}

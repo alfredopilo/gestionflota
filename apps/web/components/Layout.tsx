@@ -55,6 +55,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Flota', path: '/vehicles', icon: '🚗' },
     { name: 'Rutas', path: '/routes', icon: '🗺️' },
     { name: 'Viajes', path: '/trips', icon: '🛣️' },
+    { name: 'Tipos de Gastos', path: '/expense-types', icon: '💰' },
     { name: 'Choferes', path: '/drivers', icon: '👤' },
     { name: 'Mantenimientos', path: '/maintenance', icon: '🔧' },
     { name: 'Inspecciones', path: '/inspections', icon: '✓' },

@@ -28,6 +28,10 @@ export class CreateVehicleDto {
   @IsString()
   type: string;
 
+  @ApiProperty({ enum: ['CARRO', 'CUERPO_ARRASTRE'], default: 'CARRO' })
+  @IsEnum(['CARRO', 'CUERPO_ARRASTRE'])
+  category: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

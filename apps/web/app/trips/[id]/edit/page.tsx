@@ -9,6 +9,8 @@ interface Vehicle {
   plate: string;
   brand: string;
   model: string;
+  type?: string;
+  category?: string;
 }
 
 interface Driver {
@@ -31,6 +33,7 @@ interface Trip {
   date: string;
   routeId?: string;
   vehicleId: string;
+  trailerBodyId?: string;
   driver1Id?: string;
   driver2Id?: string;
   origin?: string;
@@ -57,12 +60,14 @@ export default function EditTripPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState('');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [trailerBodies, setTrailerBodies] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     routeId: '',
     vehicleId: '',
+    trailerBodyId: '',
     driver1Id: '',
     driver2Id: '',
     origin: '',
@@ -80,6 +85,29 @@ export default function EditTripPage() {
     status: 'PENDING',
   });
 
+  const loadAvailableVehicles = async (date: string) => {
+    try {
+      // Cargar carros disponibles
+      const vehiclesRes = await api.get(`/trips/available-vehicles?date=${date}&category=CARRO&excludeTripId=${tripId}`);
+      setVehicles(vehiclesRes.data || []);
+
+      // Cargar cuerpos de arrastre disponibles
+      const trailerBodiesRes = await api.get(`/trips/available-vehicles?date=${date}&category=CUERPO_ARRASTRE&excludeTripId=${tripId}`);
+      setTrailerBodies(trailerBodiesRes.data || []);
+    } catch (error) {
+      console.error('Error loading available vehicles:', error);
+      // Fallback: cargar todos los vehículos si falla la consulta de disponibles
+      try {
+        const vehiclesRes = await api.get('/vehicles?page=1&limit=100');
+        const allVehicles = vehiclesRes.data.data || [];
+        setVehicles(allVehicles.filter((v: Vehicle) => v.category === 'CARRO' || !v.category));
+        setTrailerBodies(allVehicles.filter((v: Vehicle) => v.category === 'CUERPO_ARRASTRE'));
+      } catch (e) {
+        console.error('Error loading fallback vehicles:', e);
+      }
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
@@ -90,6 +118,13 @@ export default function EditTripPage() {
     loadData();
   }, [router, tripId]);
 
+  // Recargar vehículos disponibles cuando cambie la fecha
+  useEffect(() => {
+    if (formData.date && !loadingData) {
+      loadAvailableVehicles(formData.date);
+    }
+  }, [formData.date]);
+
   const loadData = async () => {
     try {
       setLoadingData(true);
@@ -99,13 +134,21 @@ export default function EditTripPage() {
       const trip: Trip = tripRes.data;
 
       // Cargar catálogos
-      const [vehiclesRes, driversRes, routesRes] = await Promise.all([
-        api.get('/vehicles?page=1&limit=100'),
+      const tripDate = trip.date ? new Date(trip.date).toISOString().split('T')[0] : formData.date;
+      
+      const [vehiclesRes, trailerBodiesRes, driversRes, routesRes] = await Promise.all([
+        api.get(`/trips/available-vehicles?date=${tripDate}&category=CARRO&excludeTripId=${tripId}`).catch(() => 
+          api.get('/vehicles?page=1&limit=100').then(res => ({ data: (res.data.data || []).filter((v: Vehicle) => v.category === 'CARRO' || !v.category) }))
+        ),
+        api.get(`/trips/available-vehicles?date=${tripDate}&category=CUERPO_ARRASTRE&excludeTripId=${tripId}`).catch(() =>
+          api.get('/vehicles?page=1&limit=100').then(res => ({ data: (res.data.data || []).filter((v: Vehicle) => v.category === 'CUERPO_ARRASTRE') }))
+        ),
         api.get('/admin/users?page=1&limit=100').catch(() => ({ data: { data: [] } })),
         api.get('/routes?page=1&limit=100').catch(() => ({ data: { data: [] } })),
       ]);
 
-      setVehicles(vehiclesRes.data.data || []);
+      setVehicles(vehiclesRes.data || []);
+      setTrailerBodies(trailerBodiesRes.data || []);
       
       const responseData = driversRes.data?.data || driversRes.data || [];
       const usersArray = Array.isArray(responseData) ? responseData : [];
@@ -130,6 +173,7 @@ export default function EditTripPage() {
         date: trip.date ? new Date(trip.date).toISOString().split('T')[0] : '',
         routeId: trip.routeId || '',
         vehicleId: trip.vehicleId || '',
+        trailerBodyId: trip.trailerBodyId || '',
         driver1Id: trip.driver1Id || '',
         driver2Id: trip.driver2Id || '',
         origin: trip.origin || '',
@@ -179,6 +223,11 @@ export default function EditTripPage() {
         vehicleId: formData.vehicleId,
       };
 
+      if (formData.trailerBodyId) {
+        payload.trailerBodyId = formData.trailerBodyId;
+      } else {
+        payload.trailerBodyId = null;
+      }
       if (formData.routeId) payload.routeId = formData.routeId;
       if (formData.driver1Id) payload.driver1Id = formData.driver1Id;
       if (formData.driver2Id) payload.driver2Id = formData.driver2Id;
@@ -288,7 +337,7 @@ export default function EditTripPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vehículo *
+              Carro *
             </label>
             <select
               required
@@ -296,7 +345,7 @@ export default function EditTripPage() {
               onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Seleccionar vehículo</option>
+              <option value="">Seleccionar carro</option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.plate} - {v.brand} {v.model}
@@ -304,6 +353,28 @@ export default function EditTripPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Cuerpo de Arrastre */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Cuerpo de Arrastre (Opcional)
+          </label>
+          <select
+            value={formData.trailerBodyId}
+            onChange={(e) => setFormData({ ...formData, trailerBodyId: e.target.value })}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Seleccionar cuerpo de arrastre (opcional)</option>
+            {trailerBodies.map((tb) => (
+              <option key={tb.id} value={tb.id}>
+                {tb.plate} - {tb.brand} {tb.model} ({tb.type})
+              </option>
+            ))}
+          </select>
+          {trailerBodies.length === 0 && formData.date && (
+            <p className="mt-1 text-sm text-gray-500">No hay cuerpos de arrastre disponibles para esta fecha</p>
+          )}
         </div>
 
         {/* Ruta */}

@@ -10,6 +10,7 @@ interface Vehicle {
   year: number | null;
   vin?: string;
   type: string;
+  category?: string;
   capacity?: number;
   status: string;
   odometer: number;
@@ -31,6 +32,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
     year: null,
     vin: '',
     type: 'TRUCK',
+    category: 'CARRO',
     capacity: 0,
     status: 'ACTIVE',
     odometer: 0,
@@ -41,7 +43,10 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
 
   useEffect(() => {
     if (vehicle) {
-      setFormData(vehicle);
+      setFormData({
+        ...vehicle,
+        category: vehicle.category || 'CARRO',
+      });
     } else {
       setFormData({
         plate: '',
@@ -50,6 +55,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
         year: null,
         vin: '',
         type: 'TRUCK',
+        category: 'CARRO',
         capacity: 0,
         status: 'ACTIVE',
         odometer: 0,
@@ -58,6 +64,34 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
     }
     setError('');
   }, [vehicle, isOpen]);
+
+  const handleCategoryChange = (category: string) => {
+    // Resetear el tipo cuando cambia la categoría
+    const defaultType = category === 'CARRO' ? 'TRUCK' : 'BAÑERAS';
+    setFormData({ ...formData, category, type: defaultType });
+  };
+
+  const getTypeOptions = () => {
+    if (formData.category === 'CUERPO_ARRASTRE') {
+      return (
+        <>
+          <option value="BAÑERAS">Bañeras</option>
+          <option value="CONTENEDORES">Contenedores</option>
+          <option value="TANQUEROS">Tanqueros</option>
+        </>
+      );
+    }
+    // CARRO por defecto
+    return (
+      <>
+        <option value="TRUCK">Camión</option>
+        <option value="TRAILER">Remolque</option>
+        <option value="VAN">Van</option>
+        <option value="CAR">Automóvil</option>
+        <option value="OTHER">Otro</option>
+      </>
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,6 +222,21 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categoría *
+                </label>
+                <select
+                  required
+                  value={formData.category || 'CARRO'}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="CARRO">Carro</option>
+                  <option value="CUERPO_ARRASTRE">Cuerpo de Arrastre</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Tipo *
                 </label>
                 <select
@@ -196,11 +245,7 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="TRUCK">Camión</option>
-                  <option value="TRAILER">Remolque</option>
-                  <option value="VAN">Van</option>
-                  <option value="CAR">Automóvil</option>
-                  <option value="OTHER">Otro</option>
+                  {getTypeOptions()}
                 </select>
               </div>
 

@@ -13,6 +13,7 @@ interface Vehicle {
   year: number | null;
   vin?: string;
   type: string;
+  category?: string;
   capacity?: number;
   status: string;
   odometer: number;
@@ -96,6 +97,7 @@ export default function VehiclesPage() {
         brand: vehicle.brand?.trim(),
         model: vehicle.model?.trim(),
         type: vehicle.type,
+        category: vehicle.category || 'CARRO',
         status: vehicle.status,
         odometer: Number(vehicle.odometer) || 0,
         hourmeter: Number(vehicle.hourmeter) || 0,

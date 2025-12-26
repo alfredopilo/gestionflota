@@ -18,6 +18,11 @@ export class CreateTripDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  trailerBodyId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   driver1Id?: string;
 
   @ApiProperty({ required: false })
@@ -89,4 +94,9 @@ export class CreateTripDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiProperty({ required: false, enum: ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] })
+  @IsOptional()
+  @IsEnum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'])
+  status?: string;
 }

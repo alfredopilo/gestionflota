@@ -15,6 +15,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { RoutesModule } from './modules/routes/routes.module';
+import { ExpenseTypesModule } from './modules/expense-types/expense-types.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -35,6 +36,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ReportsModule,
     AdminModule,
     RoutesModule,
+    ExpenseTypesModule,
   ],
   controllers: [AppController],
   providers: [

@@ -16,6 +16,8 @@ import { TripsService } from './trips.service';
 import { TripsImporterService } from './importers/trips-importer.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { CreateTripExpenseDto } from './dto/create-trip-expense.dto';
+import { UpdateTripExpenseDto } from './dto/update-trip-expense.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import * as multer from 'multer';
@@ -57,6 +59,17 @@ export class TripsController {
     );
   }
 
+  @Get('available-vehicles')
+  @ApiOperation({ summary: 'Obtener vehículos disponibles para una fecha y categoría' })
+  getAvailableVehicles(
+    @Query('date') date: string,
+    @Query('category') category: 'CARRO' | 'CUERPO_ARRASTRE',
+    @Query('excludeTripId') excludeTripId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.tripsService.getAvailableVehicles(user.companyId, date, category, excludeTripId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener viaje por ID' })
   findOne(@Param('id') id: string, @CurrentUser() user: any) {
@@ -73,6 +86,37 @@ export class TripsController {
   @ApiOperation({ summary: 'Eliminar viaje' })
   remove(@Param('id') id: string, @CurrentUser() user: any) {
     return this.tripsService.remove(id, user.companyId);
+  }
+
+  @Post(':id/expenses')
+  @ApiOperation({ summary: 'Agregar gasto a un viaje' })
+  addExpense(
+    @Param('id') id: string,
+    @Body() createExpenseDto: CreateTripExpenseDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.tripsService.addExpense(id, createExpenseDto, user.companyId);
+  }
+
+  @Patch(':id/expenses/:expenseId')
+  @ApiOperation({ summary: 'Actualizar gasto de un viaje' })
+  updateExpense(
+    @Param('id') id: string,
+    @Param('expenseId') expenseId: string,
+    @Body() updateExpenseDto: UpdateTripExpenseDto,
+    @CurrentUser() user: any,
+  ) {
+    return this.tripsService.updateExpense(id, expenseId, updateExpenseDto, user.companyId);
+  }
+
+  @Delete(':id/expenses/:expenseId')
+  @ApiOperation({ summary: 'Eliminar gasto de un viaje' })
+  deleteExpense(
+    @Param('id') id: string,
+    @Param('expenseId') expenseId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.tripsService.deleteExpense(id, expenseId, user.companyId);
   }
 
   @Post('import/preview')

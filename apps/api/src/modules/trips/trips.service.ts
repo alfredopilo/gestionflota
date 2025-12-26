@@ -2,12 +2,112 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateTripDto } from './dto/create-trip.dto';
 import { UpdateTripDto } from './dto/update-trip.dto';
+import { CreateTripExpenseDto } from './dto/create-trip-expense.dto';
+import { UpdateTripExpenseDto } from './dto/update-trip-expense.dto';
 
 @Injectable()
 export class TripsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Obtiene vehículos disponibles para una fecha y categoría específica
+   * Verifica que el vehículo esté ACTIVE y no esté asignado a otro viaje en la misma fecha
+   */
+  async getAvailableVehicles(companyId: string, date: string, category: 'CARRO' | 'CUERPO_ARRASTRE', excludeTripId?: string) {
+    // Convertir fecha a formato Date si es necesario
+    let tripDate: Date;
+    if (typeof date === 'string' && !date.includes('T')) {
+      tripDate = new Date(date + 'T00:00:00.000Z');
+    } else {
+      tripDate = new Date(date);
+    }
+
+    // Obtener vehículos con status ACTIVE y categoría correcta
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: {
+        companyId,
+        status: 'ACTIVE',
+        category,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        plate: true,
+        brand: true,
+        model: true,
+        type: true,
+        category: true,
+      },
+    });
+
+    // Obtener IDs de vehículos ya asignados en esa fecha
+    const whereClause: any = {
+      companyId,
+      date: tripDate,
+    };
+
+    if (excludeTripId) {
+      whereClause.id = { not: excludeTripId };
+    }
+
+    const tripsOnDate = await this.prisma.trip.findMany({
+      where: whereClause,
+      select: {
+        vehicleId: true,
+        trailerBodyId: true,
+      },
+    });
+
+    // Crear set de IDs ocupados
+    const occupiedIds = new Set<string>();
+    tripsOnDate.forEach((trip) => {
+      if (trip.vehicleId) occupiedIds.add(trip.vehicleId);
+      if (trip.trailerBodyId) occupiedIds.add(trip.trailerBodyId);
+    });
+
+    // Filtrar vehículos disponibles
+    return vehicles.filter((v) => !occupiedIds.has(v.id));
+  }
+
   async create(createTripDto: CreateTripDto, companyId: string, createdById: string) {
+    // Validar disponibilidad del vehículo principal
+    const availableVehicles = await this.getAvailableVehicles(companyId, createTripDto.date, 'CARRO');
+    const vehicleAvailable = availableVehicles.some((v) => v.id === createTripDto.vehicleId);
+    if (!vehicleAvailable) {
+      throw new BadRequestException('El vehículo seleccionado no está disponible para la fecha especificada');
+    }
+
+    // Validar que el vehículo sea de categoría CARRO
+    const vehicle = await this.prisma.vehicle.findFirst({
+      where: { id: createTripDto.vehicleId, companyId },
+    });
+    if (!vehicle) {
+      throw new NotFoundException('Vehículo no encontrado');
+    }
+    if (vehicle.category !== 'CARRO') {
+      throw new BadRequestException('El vehículo principal debe ser de categoría CARRO');
+    }
+
+    // Validar disponibilidad del cuerpo de arrastre si se proporciona
+    if (createTripDto.trailerBodyId) {
+      const availableTrailerBodies = await this.getAvailableVehicles(companyId, createTripDto.date, 'CUERPO_ARRASTRE');
+      const trailerAvailable = availableTrailerBodies.some((v) => v.id === createTripDto.trailerBodyId);
+      if (!trailerAvailable) {
+        throw new BadRequestException('El cuerpo de arrastre seleccionado no está disponible para la fecha especificada');
+      }
+
+      // Validar que el cuerpo de arrastre sea de categoría CUERPO_ARRASTRE
+      const trailerBody = await this.prisma.vehicle.findFirst({
+        where: { id: createTripDto.trailerBodyId, companyId },
+      });
+      if (!trailerBody) {
+        throw new NotFoundException('Cuerpo de arrastre no encontrado');
+      }
+      if (trailerBody.category !== 'CUERPO_ARRASTRE') {
+        throw new BadRequestException('El cuerpo de arrastre debe ser de categoría CUERPO_ARRASTRE');
+      }
+    }
+
     // Validaciones
     if (createTripDto.kmEnd && createTripDto.kmStart && createTripDto.kmEnd < createTripDto.kmStart) {
       throw new BadRequestException('kmEnd debe ser mayor o igual a kmStart');
@@ -44,6 +144,7 @@ export class TripsService {
       },
       include: {
         vehicle: true,
+        trailerBody: true,
         driver1: true,
         driver2: true,
         route: true,
@@ -77,6 +178,7 @@ export class TripsService {
         take: limit,
         include: {
           vehicle: true,
+          trailerBody: true,
           driver1: true,
           driver2: true,
           route: true,
@@ -105,9 +207,18 @@ export class TripsService {
       },
       include: {
         vehicle: true,
+        trailerBody: true,
         driver1: true,
         driver2: true,
         route: true,
+        expenses: {
+          include: {
+            expenseType: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
         createdBy: {
           select: {
             id: true,
@@ -127,7 +238,65 @@ export class TripsService {
   }
 
   async update(id: string, updateTripDto: UpdateTripDto, companyId: string) {
-    await this.findOne(id, companyId);
+    const existingTrip = await this.findOne(id, companyId);
+    // Convertir Date a string si es necesario
+    let tripDate: string;
+    if (updateTripDto.date) {
+      tripDate = updateTripDto.date;
+    } else {
+      const existingDate = existingTrip.date as any;
+      if (existingDate instanceof Date) {
+        tripDate = existingDate.toISOString().split('T')[0];
+      } else if (typeof existingDate === 'string') {
+        tripDate = existingDate.includes('T') ? existingDate.split('T')[0] : existingDate;
+      } else {
+        tripDate = String(existingDate).split('T')[0];
+      }
+    }
+    // Asegurar formato YYYY-MM-DD
+    if (tripDate.includes('T')) {
+      tripDate = tripDate.split('T')[0];
+    }
+
+    // Validar disponibilidad del vehículo principal si se actualiza
+    if (updateTripDto.vehicleId && updateTripDto.vehicleId !== existingTrip.vehicleId) {
+      const availableVehicles = await this.getAvailableVehicles(companyId, tripDate, 'CARRO', id);
+      const vehicleAvailable = availableVehicles.some((v) => v.id === updateTripDto.vehicleId);
+      if (!vehicleAvailable) {
+        throw new BadRequestException('El vehículo seleccionado no está disponible para la fecha especificada');
+      }
+
+      const vehicle = await this.prisma.vehicle.findFirst({
+        where: { id: updateTripDto.vehicleId, companyId },
+      });
+      if (!vehicle) {
+        throw new NotFoundException('Vehículo no encontrado');
+      }
+      if (vehicle.category !== 'CARRO') {
+        throw new BadRequestException('El vehículo principal debe ser de categoría CARRO');
+      }
+    }
+
+    // Validar disponibilidad del cuerpo de arrastre si se actualiza
+    if (updateTripDto.trailerBodyId !== undefined) {
+      if (updateTripDto.trailerBodyId && updateTripDto.trailerBodyId !== existingTrip.trailerBodyId) {
+        const availableTrailerBodies = await this.getAvailableVehicles(companyId, tripDate, 'CUERPO_ARRASTRE', id);
+        const trailerAvailable = availableTrailerBodies.some((v) => v.id === updateTripDto.trailerBodyId);
+        if (!trailerAvailable) {
+          throw new BadRequestException('El cuerpo de arrastre seleccionado no está disponible para la fecha especificada');
+        }
+
+        const trailerBody = await this.prisma.vehicle.findFirst({
+          where: { id: updateTripDto.trailerBodyId, companyId },
+        });
+        if (!trailerBody) {
+          throw new NotFoundException('Cuerpo de arrastre no encontrado');
+        }
+        if (trailerBody.category !== 'CUERPO_ARRASTRE') {
+          throw new BadRequestException('El cuerpo de arrastre debe ser de categoría CUERPO_ARRASTRE');
+        }
+      }
+    }
 
     // Validaciones
     if (updateTripDto.kmEnd && updateTripDto.kmStart && updateTripDto.kmEnd < updateTripDto.kmStart) {
@@ -156,6 +325,7 @@ export class TripsService {
       },
       include: {
         vehicle: true,
+        trailerBody: true,
         driver1: true,
         driver2: true,
         route: true,
@@ -167,6 +337,114 @@ export class TripsService {
     await this.findOne(id, companyId);
     return this.prisma.trip.delete({
       where: { id },
+    });
+  }
+
+  async addExpense(tripId: string, createExpenseDto: CreateTripExpenseDto, companyId: string) {
+    // Verificar que el viaje existe y pertenece a la compañía
+    const trip = await this.prisma.trip.findFirst({
+      where: {
+        id: tripId,
+        companyId,
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    // Verificar que el tipo de gasto existe y pertenece a la compañía
+    const expenseType = await this.prisma.expenseType.findFirst({
+      where: {
+        id: createExpenseDto.expenseTypeId,
+        companyId,
+        active: true,
+      },
+    });
+
+    if (!expenseType) {
+      throw new NotFoundException('Expense type not found or inactive');
+    }
+
+    return this.prisma.tripExpense.create({
+      data: {
+        tripId,
+        expenseTypeId: createExpenseDto.expenseTypeId,
+        observation: createExpenseDto.observation,
+        amount: createExpenseDto.amount,
+      },
+      include: {
+        expenseType: true,
+      },
+    });
+  }
+
+  async updateExpense(
+    tripId: string,
+    expenseId: string,
+    updateExpenseDto: UpdateTripExpenseDto,
+    companyId: string,
+  ) {
+    // Verificar que el viaje existe y pertenece a la compañía
+    const trip = await this.prisma.trip.findFirst({
+      where: {
+        id: tripId,
+        companyId,
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    // Verificar que el gasto existe y pertenece al viaje
+    const expense = await this.prisma.tripExpense.findFirst({
+      where: {
+        id: expenseId,
+        tripId,
+      },
+    });
+
+    if (!expense) {
+      throw new NotFoundException('Expense not found');
+    }
+
+    return this.prisma.tripExpense.update({
+      where: { id: expenseId },
+      data: updateExpenseDto,
+      include: {
+        expenseType: true,
+      },
+    });
+  }
+
+  async deleteExpense(tripId: string, expenseId: string, companyId: string) {
+    // Verificar que el viaje existe y pertenece a la compañía
+    const trip = await this.prisma.trip.findFirst({
+      where: {
+        id: tripId,
+        companyId,
+      },
+    });
+
+    if (!trip) {
+      throw new NotFoundException('Trip not found');
+    }
+
+    // Verificar que el gasto existe y pertenece al viaje
+    const expense = await this.prisma.tripExpense.findFirst({
+      where: {
+        id: expenseId,
+        tripId,
+      },
+    });
+
+    if (!expense) {
+      throw new NotFoundException('Expense not found');
+    }
+
+    return this.prisma.tripExpense.delete({
+      where: { id: expenseId },
     });
   }
 }
