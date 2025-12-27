@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
@@ -139,10 +139,40 @@ export class AdminService {
 
       // Si es un error de Prisma por email duplicado
       if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
-        throw new Error('El email ya está registrado en el sistema');
+        throw new ConflictException('El email ya está registrado en el sistema');
       }
-      // Re-lanzar otros errores
-      throw error;
+
+      // Si es un error de Prisma por constraint único violado en otro campo
+      if (error.code === 'P2002') {
+        const field = error.meta?.target?.[0] || 'campo';
+        throw new ConflictException(`Ya existe un usuario con ese ${field}`);
+      }
+
+      // Si es un error de validación (email inválido, roles no existen, etc.)
+      if (error.message && (
+        error.message.includes('Debe asignar') ||
+        error.message.includes('no existen') ||
+        error.message.includes('inválido')
+      )) {
+        throw new BadRequestException(error.message);
+      }
+
+      // Si ya es una excepción HTTP, relanzarla
+      if (error instanceof BadRequestException || 
+          error instanceof ConflictException || 
+          error instanceof InternalServerErrorException) {
+        throw error;
+      }
+
+      // Si es un error conocido de Prisma
+      if (error.code && error.code.startsWith('P')) {
+        throw new BadRequestException(`Error de base de datos: ${error.message}`);
+      }
+
+      // Para otros errores, lanzar como error interno pero con mensaje descriptivo
+      throw new InternalServerErrorException(
+        error.message || 'Error al crear el usuario. Por favor, verifica los datos e intenta nuevamente.'
+      );
     }
   }
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, HttpException, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -37,7 +37,12 @@ export class AdminController {
         companyId: user.companyId,
       });
     } catch (error: any) {
-      throw error;
+      // El servicio ya debería lanzar HttpException apropiado, pero por si acaso:
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      // Si no es HttpException, convertir a BadRequestException
+      throw new BadRequestException(error.message || 'Error al crear el usuario');
     }
   }
 
