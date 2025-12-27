@@ -39,6 +39,8 @@ show_help() {
     echo "  -s, --skip-ip          Salta la solicitud de IP (usa valores existentes)"
     echo "  --skip-prisma          No regenera Prisma Client"
     echo "  --skip-build           No reconstruye las imágenes Docker"
+    echo "  --skip-cleanup         No limpia builds anteriores e imágenes antiguas"
+    echo "  --full-cleanup         Limpieza más agresiva (incluye cache de Docker)"
     echo "  -h, --help             Muestra esta ayuda"
     echo ""
     echo "Ejemplos:"
