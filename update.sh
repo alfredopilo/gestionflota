@@ -20,6 +20,8 @@ NC='\033[0m' # No Color
 SKIP_IP_PROMPT=false
 SKIP_PRISMA=false
 SKIP_BUILD=false
+SKIP_CLEANUP=false
+FULL_CLEANUP=false
 IP_ADDRESS=""
 ENV_FILE=".env"
 
@@ -206,6 +208,68 @@ main() {
     # Paso 2: Detener contenedores
     safe_command "$DOCKER_COMPOSE_CMD down" "Deteniendo contenedores"
     
+    # Paso 2.5: Limpiar builds anteriores e imágenes Docker antiguas
+    if [ "$SKIP_CLEANUP" = false ]; then
+        echo -e "\n${CYAN}🧹 Limpiando builds anteriores e imágenes Docker antiguas...${NC}"
+        
+        # Limpiar builds anteriores en frontend
+        if [ -d "apps/web/.next" ]; then
+            echo -e "${CYAN}  🗑️  Eliminando .next del frontend...${NC}"
+            rm -rf apps/web/.next
+            echo -e "${GREEN}  ✅ Build anterior del frontend eliminado${NC}"
+        fi
+        
+        # Limpiar builds anteriores en backend
+        if [ -d "apps/api/dist" ]; then
+            echo -e "${CYAN}  🗑️  Eliminando dist del backend...${NC}"
+            rm -rf apps/api/dist
+            echo -e "${GREEN}  ✅ Build anterior del backend eliminado${NC}"
+        fi
+        
+        # Limpiar node_modules/.cache si existe
+        if [ -d "apps/web/node_modules/.cache" ]; then
+            echo -e "${CYAN}  🗑️  Eliminando cache de node_modules...${NC}"
+            rm -rf apps/web/node_modules/.cache
+            echo -e "${GREEN}  ✅ Cache de node_modules eliminado${NC}"
+        fi
+        
+        # Limpiar imágenes Docker antiguas del mismo servicio
+        echo -e "${CYAN}  🗑️  Limpiando imágenes Docker antiguas...${NC}"
+        
+        # Eliminar imágenes huérfanas (dangling)
+        local dangling_images=$(docker images -f "dangling=true" -q 2>/dev/null)
+        if [ -n "$dangling_images" ]; then
+            echo -e "${CYAN}    Eliminando imágenes huérfanas (dangling)...${NC}"
+            docker rmi $dangling_images 2>/dev/null || true
+        fi
+        
+        # Eliminar todas las imágenes antiguas de gestiondeflota-api excepto la más reciente
+        local api_images_count=$(docker images --format "{{.ID}}" --filter "reference=gestiondeflota-api" 2>/dev/null | wc -l)
+        if [ "$api_images_count" -gt 1 ]; then
+            echo -e "${CYAN}    Eliminando imágenes antiguas de gestiondeflota-api (manteniendo la más reciente)...${NC}"
+            docker images --format "{{.ID}}" --filter "reference=gestiondeflota-api" 2>/dev/null | tail -n +2 | xargs docker rmi -f 2>/dev/null || true
+        fi
+        
+        # Eliminar todas las imágenes antiguas de gestiondeflota-web excepto la más reciente
+        local web_images_count=$(docker images --format "{{.ID}}" --filter "reference=gestiondeflota-web" 2>/dev/null | wc -l)
+        if [ "$web_images_count" -gt 1 ]; then
+            echo -e "${CYAN}    Eliminando imágenes antiguas de gestiondeflota-web (manteniendo la más reciente)...${NC}"
+            docker images --format "{{.ID}}" --filter "reference=gestiondeflota-web" 2>/dev/null | tail -n +2 | xargs docker rmi -f 2>/dev/null || true
+        fi
+        
+        # Limpieza adicional si se solicita
+        if [ "$FULL_CLEANUP" = true ]; then
+            echo -e "${CYAN}  🗑️  Limpieza completa de cache de Docker...${NC}"
+            docker builder prune -af --filter "until=24h" 2>/dev/null || true
+            docker system prune -af --volumes 2>/dev/null || true
+            echo -e "${GREEN}  ✅ Limpieza completa completada${NC}"
+        fi
+        
+        echo -e "${GREEN}  ✅ Limpieza completada${NC}"
+    else
+        echo -e "\n${YELLOW}⏭️  Saltando limpieza de builds e imágenes (--skip-cleanup)${NC}"
+    fi
+    
     # Paso 3: Regenerar Prisma (si no se saltea)
     if [ "$SKIP_PRISMA" = false ]; then
         if [ -f "apps/api/prisma/schema.prisma" ]; then
@@ -225,10 +289,19 @@ main() {
     # Paso 4: Reconstruir imágenes Docker (si no se saltea)
     if [ "$SKIP_BUILD" = false ]; then
         echo -e "\n${CYAN}🔨 Reconstruyendo imágenes Docker (esto puede tardar varios minutos)...${NC}"
-        if safe_command "$DOCKER_COMPOSE_CMD build --no-cache api web" "Reconstruyendo imágenes" false; then
+        echo -e "${YELLOW}  💡 Tip: Si tienes problemas de espacio, puedes limpiar más agresivamente con:${NC}"
+        echo -e "${NC}     docker system prune -a --volumes -f"
+        
+        # Construir con cache inteligente: usar cache para dependencias, rebuild solo código
+        if safe_command "$DOCKER_COMPOSE_CMD build api web" "Reconstruyendo imágenes" false; then
             echo -e "${GREEN}  ✅ Imágenes reconstruidas correctamente${NC}"
         else
-            echo -e "\n${YELLOW}⚠️  Hubo errores en el build. Intentando continuar...${NC}"
+            echo -e "\n${YELLOW}⚠️  Hubo errores en el build con cache. Intentando sin cache...${NC}"
+            if safe_command "$DOCKER_COMPOSE_CMD build --no-cache api web" "Reconstruyendo imágenes sin cache" false; then
+                echo -e "${GREEN}  ✅ Imágenes reconstruidas correctamente (sin cache)${NC}"
+            else
+                echo -e "\n${YELLOW}⚠️  Hubo errores en el build. Intentando continuar...${NC}"
+            fi
         fi
     else
         echo -e "\n${YELLOW}⏭️  Saltando reconstrucción de imágenes (usando imágenes existentes)${NC}"
@@ -309,6 +382,14 @@ while [[ $# -gt 0 ]]; do
             ;;
         --skip-build)
             SKIP_BUILD=true
+            shift
+            ;;
+        --skip-cleanup)
+            SKIP_CLEANUP=true
+            shift
+            ;;
+        --full-cleanup)
+            FULL_CLEANUP=true
             shift
             ;;
         -h|--help)
