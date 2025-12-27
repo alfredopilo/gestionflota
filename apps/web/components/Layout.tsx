@@ -50,17 +50,35 @@ export default function Layout({ children }: LayoutProps) {
     router.push('/login');
   };
 
-  const menuItems = [
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  // Auto-expandir administración si estamos en una de sus rutas
+  useEffect(() => {
+    if (pathname?.startsWith('/config') || pathname?.startsWith('/admin')) {
+      setAdminOpen(true);
+    }
+  }, [pathname]);
+
+  const menuItems: Array<
+    | { name: string; path: string; icon: string; children?: never }
+    | { name: string; icon: string; children: Array<{ name: string; path: string; icon: string }>; path?: never }
+  > = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Flota', path: '/vehicles', icon: '🚗' },
     { name: 'Rutas', path: '/routes', icon: '🗺️' },
     { name: 'Viajes', path: '/trips', icon: '🛣️' },
     { name: 'Tipos de Gastos', path: '/expense-types', icon: '💰' },
-    { name: 'Choferes', path: '/drivers', icon: '👤' },
     { name: 'Mantenimientos', path: '/maintenance', icon: '🔧' },
     { name: 'Inspecciones', path: '/inspections', icon: '✓' },
     { name: 'Reportes', path: '/reports', icon: '📄' },
-    { name: 'Administración', path: '/admin', icon: '⚙️' },
+    {
+      name: 'Administración',
+      icon: '⚙️',
+      children: [
+        { name: 'Usuarios', path: '/config/usuarios', icon: '👤' },
+        { name: 'Configuración', path: '/admin', icon: '🔧' },
+      ],
+    },
   ];
 
   if (pathname === '/login') {
@@ -107,21 +125,69 @@ export default function Layout({ children }: LayoutProps) {
 
         <nav className="flex-1 overflow-y-auto">
           <ul className="space-y-1 p-2">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <Link
-                  href={item.path}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 transform hover:translate-x-1 ${
-                    pathname === item.path
-                      ? 'bg-blue-600 text-white shadow-lg'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
-                >
-                  <span className="text-xl transition-transform duration-200 hover:scale-110">{item.icon}</span>
-                  {sidebarOpen && <span className="font-medium">{item.name}</span>}
-                </Link>
-              </li>
-            ))}
+            {menuItems.map((item, index) => {
+              if ('children' in item && item.children) {
+                // Item con submenú
+                const isActive = item.children.some((child) => pathname === child.path);
+                return (
+                  <li key={`${item.name}-${index}`}>
+                    <button
+                      onClick={() => setAdminOpen(!adminOpen)}
+                      className={`w-full flex items-center justify-between space-x-3 px-4 py-3 rounded-lg transition-all duration-200 transform hover:translate-x-1 ${
+                        isActive
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xl transition-transform duration-200 hover:scale-110">{item.icon}</span>
+                        {sidebarOpen && <span className="font-medium">{item.name}</span>}
+                      </div>
+                      {sidebarOpen && (
+                        <span className={`transform transition-transform ${adminOpen ? 'rotate-90' : ''}`}>
+                          ›
+                        </span>
+                      )}
+                    </button>
+                    {sidebarOpen && adminOpen && (
+                      <ul className="ml-4 mt-1 space-y-1">
+                        {item.children.map((child) => (
+                          <li key={child.path}>
+                            <Link
+                              href={child.path}
+                              className={`flex items-center space-x-3 px-4 py-2 rounded-lg transition-all duration-200 ${
+                                pathname === child.path
+                                  ? 'bg-blue-700 text-white'
+                                  : 'text-gray-400 hover:bg-gray-700 hover:text-white'
+                              }`}
+                            >
+                              <span className="text-lg">{child.icon}</span>
+                              <span className="text-sm font-medium">{child.name}</span>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              }
+              // Item simple
+              return (
+                <li key={item.path}>
+                  <Link
+                    href={item.path}
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 transform hover:translate-x-1 ${
+                      pathname === item.path
+                        ? 'bg-blue-600 text-white shadow-lg'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xl transition-transform duration-200 hover:scale-110">{item.icon}</span>
+                    {sidebarOpen && <span className="font-medium">{item.name}</span>}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -158,7 +224,19 @@ export default function Layout({ children }: LayoutProps) {
                   <span className="text-2xl">☰</span>
                 </button>
                 <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 truncate">
-                  {menuItems.find((item) => item.path === pathname)?.name || 'Sistema'}
+                  {(() => {
+                    // Buscar en items simples
+                    const simpleItem = menuItems.find((item) => 'path' in item && item.path === pathname);
+                    if (simpleItem) return simpleItem.name;
+                    // Buscar en submenús
+                    for (const item of menuItems) {
+                      if ('children' in item && item.children) {
+                        const child = item.children.find((child) => child.path === pathname);
+                        if (child) return child.name;
+                      }
+                    }
+                    return 'Sistema';
+                  })()}
                 </h2>
               </div>
               <div className="flex items-center space-x-2 sm:space-x-4">

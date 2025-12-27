@@ -129,48 +129,126 @@ export class TripsImporterService {
         errors.push('Placa requerida');
       }
 
+      // Get CONDUCTOR role
+      const conductorRole = await this.prisma.role.findUnique({
+        where: { code: 'CONDUCTOR' },
+      });
+
+      if (!conductorRole) {
+        errors.push('No se encontró el rol CONDUCTOR en el sistema');
+      }
+
       // Conductor 1
-      if (rowData.driver1) {
-        const driver = await this.prisma.driver.findFirst({
+      if (rowData.driver1 && conductorRole) {
+        const fullName = rowData.driver1.trim();
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        let user = await this.prisma.user.findFirst({
           where: {
-            name: { contains: rowData.driver1, mode: 'insensitive' },
             companyId,
             deletedAt: null,
+            isActive: true,
+            userRoles: {
+              some: {
+                roleId: conductorRole.id,
+              },
+            },
+            OR: [
+              { firstName: { contains: firstName, mode: 'insensitive' }, lastName: { contains: lastName, mode: 'insensitive' } },
+              { email: { contains: firstName.toLowerCase(), mode: 'insensitive' } },
+            ],
           },
         });
-        if (driver) {
-          tripData.driver1Id = driver.id;
+
+        if (user) {
+          tripData.driver1Id = user.id;
         } else {
-          // Crear conductor si no existe
-          const newDriver = await this.prisma.driver.create({
+          // Crear nuevo usuario con rol CONDUCTOR
+          const bcrypt = require('bcrypt');
+          const passwordHash = await bcrypt.hash('TempPassword123!', 10);
+          
+          let email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '.')}@conductor.local`;
+          let counter = 1;
+          while (await this.prisma.user.findUnique({ where: { email } })) {
+            email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '.')}${counter}@conductor.local`;
+            counter++;
+          }
+
+          user = await this.prisma.user.create({
             data: {
-              name: rowData.driver1,
+              email,
+              passwordHash,
+              firstName,
+              lastName,
               companyId,
+              isActive: true,
+              userRoles: {
+                create: {
+                  roleId: conductorRole.id,
+                },
+              },
             },
           });
-          tripData.driver1Id = newDriver.id;
+          tripData.driver1Id = user.id;
         }
       }
 
       // Conductor 2
-      if (rowData.driver2) {
-        const driver = await this.prisma.driver.findFirst({
+      if (rowData.driver2 && conductorRole) {
+        const fullName = rowData.driver2.trim();
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+
+        let user = await this.prisma.user.findFirst({
           where: {
-            name: { contains: rowData.driver2, mode: 'insensitive' },
             companyId,
             deletedAt: null,
+            isActive: true,
+            userRoles: {
+              some: {
+                roleId: conductorRole.id,
+              },
+            },
+            OR: [
+              { firstName: { contains: firstName, mode: 'insensitive' }, lastName: { contains: lastName, mode: 'insensitive' } },
+              { email: { contains: firstName.toLowerCase(), mode: 'insensitive' } },
+            ],
           },
         });
-        if (driver) {
-          tripData.driver2Id = driver.id;
+
+        if (user) {
+          tripData.driver2Id = user.id;
         } else {
-          const newDriver = await this.prisma.driver.create({
+          // Crear nuevo usuario con rol CONDUCTOR
+          const bcrypt = require('bcrypt');
+          const passwordHash = await bcrypt.hash('TempPassword123!', 10);
+          
+          let email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '.')}@conductor.local`;
+          let counter = 1;
+          while (await this.prisma.user.findUnique({ where: { email } })) {
+            email = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/\s+/g, '.')}${counter}@conductor.local`;
+            counter++;
+          }
+
+          user = await this.prisma.user.create({
             data: {
-              name: rowData.driver2,
+              email,
+              passwordHash,
+              firstName,
+              lastName,
               companyId,
+              isActive: true,
+              userRoles: {
+                create: {
+                  roleId: conductorRole.id,
+                },
+              },
             },
           });
-          tripData.driver2Id = newDriver.id;
+          tripData.driver2Id = user.id;
         }
       }
 

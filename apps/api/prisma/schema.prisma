@@ -24,7 +24,6 @@ model Company {
 
   users     User[]
   vehicles  Vehicle[]
-  drivers   Driver[]
   routes    Route[]
   trips     Trip[]
   plans     MaintenancePlan[]
@@ -53,6 +52,8 @@ model User {
   company     Company      @relation(fields: [companyId], references: [id])
   userRoles   UserRole[]
   createdTrips Trip[]      @relation("TripCreator")
+  tripsAsDriver1 Trip[]    @relation("TripDriver1")
+  tripsAsDriver2 Trip[]    @relation("TripDriver2")
   workOrders  WorkOrder[]  @relation("WorkOrderOperator")
   supervisedWorkOrders WorkOrder[] @relation("WorkOrderSupervisor")
   inspections Inspection[]
@@ -118,7 +119,6 @@ model Vehicle {
 
   company           Company            @relation(fields: [companyId], references: [id])
   documents         VehicleDocument[]
-  assignments       VehicleAssignment[]
   tripsAsVehicle    Trip[]             @relation("TripVehicle")
   tripsAsTrailerBody Trip[]            @relation("TripTrailerBody")
   workOrders        WorkOrder[]
@@ -150,43 +150,6 @@ model VehicleDocument {
   @@map("vehicle_documents")
 }
 
-model Driver {
-  id          String   @id @default(uuid())
-  name        String
-  licenseNumber String? @map("license_number")
-  phone       String?
-  email       String?
-  companyId   String   @map("company_id")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  deletedAt   DateTime? @map("deleted_at")
-
-  company     Company           @relation(fields: [companyId], references: [id])
-  assignments VehicleAssignment[]
-  tripsAsDriver1 Trip[]        @relation("Driver1")
-  tripsAsDriver2 Trip[]        @relation("Driver2")
-
-  @@index([companyId])
-  @@map("drivers")
-}
-
-model VehicleAssignment {
-  id          String    @id @default(uuid())
-  vehicleId   String    @map("vehicle_id")
-  driverId    String    @map("driver_id")
-  assignedAt  DateTime  @default(now()) @map("assigned_at")
-  unassignedAt DateTime? @map("unassigned_at")
-  isActive    Boolean   @default(true) @map("is_active")
-  notes       String?
-
-  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  driver      Driver    @relation(fields: [driverId], references: [id], onDelete: Cascade)
-
-  @@index([vehicleId])
-  @@index([driverId])
-  @@index([isActive])
-  @@map("vehicle_assignments")
-}
 
 // ============================================
 // RUTAS
@@ -246,8 +209,8 @@ model Trip {
   route         Route?    @relation(fields: [routeId], references: [id])
   vehicle       Vehicle   @relation("TripVehicle", fields: [vehicleId], references: [id])
   trailerBody   Vehicle?  @relation("TripTrailerBody", fields: [trailerBodyId], references: [id])
-  driver1       Driver?   @relation("Driver1", fields: [driver1Id], references: [id])
-  driver2       Driver?   @relation("Driver2", fields: [driver2Id], references: [id])
+  driver1       User?     @relation("TripDriver1", fields: [driver1Id], references: [id])
+  driver2       User?     @relation("TripDriver2", fields: [driver2Id], references: [id])
   company       Company   @relation(fields: [companyId], references: [id])
   createdBy     User?     @relation("TripCreator", fields: [createdById], references: [id])
 

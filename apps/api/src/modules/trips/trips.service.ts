@@ -110,16 +110,24 @@ export class TripsService {
 
     // Validar driver1Id si se proporciona
     if (createTripDto.driver1Id) {
-      // Verificar que el driver existe, pertenece a la compañía y no está eliminado
-      const driver = await this.prisma.driver.findFirst({
+      // Verificar que el usuario existe, pertenece a la compañía, está activo y tiene rol CONDUCTOR
+      const user = await this.prisma.user.findFirst({
         where: {
           id: createTripDto.driver1Id,
           companyId,
           deletedAt: null,
+          isActive: true,
+          userRoles: {
+            some: {
+              role: {
+                code: 'CONDUCTOR',
+              },
+            },
+          },
         },
       });
-      if (!driver) {
-        throw new NotFoundException('El conductor especificado no existe o ha sido eliminado');
+      if (!user) {
+        throw new NotFoundException('El conductor especificado no existe, está inactivo o no tiene el rol CONDUCTOR');
       }
     } else if (createTripDto.driver1Id === '') {
       // Convertir string vacío a undefined
@@ -128,16 +136,24 @@ export class TripsService {
 
     // Validar driver2Id si se proporciona
     if (createTripDto.driver2Id) {
-      // Verificar que el driver existe, pertenece a la compañía y no está eliminado
-      const driver = await this.prisma.driver.findFirst({
+      // Verificar que el usuario existe, pertenece a la compañía, está activo y tiene rol CONDUCTOR
+      const user = await this.prisma.user.findFirst({
         where: {
           id: createTripDto.driver2Id,
           companyId,
           deletedAt: null,
+          isActive: true,
+          userRoles: {
+            some: {
+              role: {
+                code: 'CONDUCTOR',
+              },
+            },
+          },
         },
       });
-      if (!driver) {
-        throw new NotFoundException('El conductor secundario especificado no existe o ha sido eliminado');
+      if (!user) {
+        throw new NotFoundException('El conductor secundario especificado no existe, está inactivo o no tiene el rol CONDUCTOR');
       }
     } else if (createTripDto.driver2Id === '') {
       // Convertir string vacío a undefined
@@ -337,16 +353,24 @@ export class TripsService {
     // Validar driver1Id si se actualiza
     if (updateTripDto.driver1Id !== undefined) {
       if (updateTripDto.driver1Id && updateTripDto.driver1Id !== existingTrip.driver1Id) {
-        // Verificar que el driver existe y no está eliminado
-        const driver = await this.prisma.driver.findFirst({
+        // Verificar que el usuario existe, está activo y tiene rol CONDUCTOR
+        const user = await this.prisma.user.findFirst({
           where: {
             id: updateTripDto.driver1Id,
             companyId,
             deletedAt: null,
+            isActive: true,
+            userRoles: {
+              some: {
+                role: {
+                  code: 'CONDUCTOR',
+                },
+              },
+            },
           },
         });
-        if (!driver) {
-          throw new NotFoundException('El conductor especificado no existe o ha sido eliminado');
+        if (!user) {
+          throw new NotFoundException('El conductor especificado no existe, está inactivo o no tiene el rol CONDUCTOR');
         }
       } else if (updateTripDto.driver1Id === '' || updateTripDto.driver1Id === null) {
         // Permitir establecer null o string vacío
@@ -357,16 +381,24 @@ export class TripsService {
     // Validar driver2Id si se actualiza
     if (updateTripDto.driver2Id !== undefined) {
       if (updateTripDto.driver2Id && updateTripDto.driver2Id !== existingTrip.driver2Id) {
-        // Verificar que el driver existe y no está eliminado
-        const driver = await this.prisma.driver.findFirst({
+        // Verificar que el usuario existe, está activo y tiene rol CONDUCTOR
+        const user = await this.prisma.user.findFirst({
           where: {
             id: updateTripDto.driver2Id,
             companyId,
             deletedAt: null,
+            isActive: true,
+            userRoles: {
+              some: {
+                role: {
+                  code: 'CONDUCTOR',
+                },
+              },
+            },
           },
         });
-        if (!driver) {
-          throw new NotFoundException('El conductor secundario especificado no existe o ha sido eliminado');
+        if (!user) {
+          throw new NotFoundException('El conductor secundario especificado no existe, está inactivo o no tiene el rol CONDUCTOR');
         }
       } else if (updateTripDto.driver2Id === '' || updateTripDto.driver2Id === null) {
         // Permitir establecer null o string vacío

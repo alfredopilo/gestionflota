@@ -53,7 +53,7 @@ export class ReportsService {
       worksheet.addRow({
         date: trip.date.toLocaleDateString('es-ES'),
         vehicle: trip.vehicle.plate,
-        driver: trip.driver1?.name || '-',
+        driver: trip.driver1 ? `${trip.driver1.firstName || ''} ${trip.driver1.lastName || ''}`.trim() || trip.driver1.email : '-',
         origin: trip.origin || '-',
         destination: trip.destination || '-',
         kmTotal: Number(trip.kmTotal || 0),

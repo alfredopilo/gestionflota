@@ -16,7 +16,7 @@ async function bootstrap() {
   // CORS configuration - permite múltiples orígenes
   const allowedOrigins = process.env.FRONTEND_URL 
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
-    : ['http://localhost:4000', 'http://localhost:4001'];
+    : ['http://localhost:4000', 'http://localhost:5000'];
   
   app.enableCors({
     origin: (origin, callback) => {
@@ -79,7 +79,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
-  const port = process.env.PORT || 3001;
+  const port = process.env.PORT || 4001;
   await app.listen(port);
   console.log(`🚀 Application is running on: http://localhost:${port}`);
   console.log(`📚 Swagger documentation: http://localhost:${port}/api/docs`);

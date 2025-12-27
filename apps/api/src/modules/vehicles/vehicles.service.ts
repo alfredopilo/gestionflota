@@ -56,10 +56,6 @@ export class VehiclesService {
       },
       include: {
         documents: true,
-        assignments: {
-          where: { isActive: true },
-          include: { driver: true },
-        },
       },
     });
 

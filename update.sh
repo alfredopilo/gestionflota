@@ -243,8 +243,11 @@ main() {
     
     # Paso 6: Aplicar migraciones de base de datos
     echo -e "\n${CYAN}📦 Aplicando migraciones de base de datos...${NC}"
+    echo -e "${YELLOW}  ⚠️  Importante: Si es la primera vez que ejecutas después de la actualización,${NC}"
+    echo -e "${YELLOW}      esta migración convertirá los drivers a usuarios con rol CONDUCTOR.${NC}"
     if $DOCKER_COMPOSE_CMD exec -T api npx prisma migrate deploy 2>&1; then
         echo -e "${GREEN}  ✅ Migraciones aplicadas correctamente${NC}"
+        echo -e "${CYAN}  ℹ️  Nota: Los choferes ahora se gestionan como usuarios en Configuración > Usuarios${NC}"
     else
         echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones. Verifica manualmente:${NC}"
         echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
