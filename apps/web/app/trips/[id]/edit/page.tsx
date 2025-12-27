@@ -11,6 +11,7 @@ interface Vehicle {
   model: string;
   type?: string;
   category?: string;
+  odometer?: number;
 }
 
 interface Driver {
@@ -21,10 +22,11 @@ interface Driver {
 
 interface Route {
   id: string;
+  code?: string;
   name: string;
   origin: string;
   destination: string;
-  distanceKm?: number;
+  distanceKm?: number | null;
   estimatedHours?: number;
 }
 
@@ -198,14 +200,61 @@ export default function EditTripPage() {
     }
   };
 
+  const handleVehicleChange = (vehicleId: string) => {
+    const vehicle = vehicles.find((v) => v.id === vehicleId);
+    let kmStart = formData.kmStart;
+    
+    // Establecer kmStart con el odómetro del vehículo si existe y no hay kmStart previo
+    if (vehicle && vehicle.odometer !== undefined && vehicle.odometer !== null && !formData.kmStart) {
+      kmStart = String(vehicle.odometer);
+    }
+    
+    // Recalcular kmEnd si hay ruta seleccionada
+    let kmEnd = formData.kmEnd;
+    if (kmStart && formData.routeId) {
+      const route = routes.find((r) => r.id === formData.routeId);
+      if (route && route.distanceKm) {
+        const kmStartNum = Number(kmStart);
+        const distanceNum = Number(route.distanceKm);
+        if (!isNaN(kmStartNum) && !isNaN(distanceNum)) {
+          kmEnd = String(kmStartNum + distanceNum);
+        }
+      }
+    }
+    
+    setFormData({
+      ...formData,
+      vehicleId,
+      kmStart,
+      kmEnd,
+    });
+  };
+
+  const handleTrailerBodyChange = (trailerBodyId: string) => {
+    setFormData({
+      ...formData,
+      trailerBodyId,
+    });
+  };
+
   const handleRouteChange = (routeId: string) => {
     const route = routes.find((r) => r.id === routeId);
     if (route) {
+      // Calcular kmEnd automáticamente si hay kmStart y distanceKm
+      let kmEnd = formData.kmEnd;
+      if (route.distanceKm && formData.kmStart) {
+        const kmStartNum = Number(formData.kmStart);
+        const distanceNum = Number(route.distanceKm);
+        if (!isNaN(kmStartNum) && !isNaN(distanceNum)) {
+          kmEnd = String(kmStartNum + distanceNum);
+        }
+      }
       setFormData({
         ...formData,
         routeId,
         origin: route.origin,
         destination: route.destination,
+        kmEnd,
       });
     } else {
       setFormData({ ...formData, routeId: '', origin: '', destination: '' });
@@ -233,10 +282,25 @@ export default function EditTripPage() {
       if (formData.driver2Id) payload.driver2Id = formData.driver2Id;
       if (formData.origin) payload.origin = formData.origin;
       if (formData.destination) payload.destination = formData.destination;
-      if (formData.departureTime)
+      if (formData.departureTime) {
         payload.departureTime = new Date(`${formData.date}T${formData.departureTime}`).toISOString();
-      if (formData.arrivalTime)
-        payload.arrivalTime = new Date(`${formData.date}T${formData.arrivalTime}`).toISOString();
+      }
+      if (formData.arrivalTime) {
+        const departureDate = formData.departureTime 
+          ? new Date(`${formData.date}T${formData.departureTime}`)
+          : null;
+        const arrivalDate = new Date(`${formData.date}T${formData.arrivalTime}`);
+        
+        // Si la hora de llegada es menor que la de salida, asumir que es del día siguiente
+        if (departureDate && arrivalDate < departureDate) {
+          // Agregar 1 día a la fecha de llegada
+          const nextDay = new Date(arrivalDate);
+          nextDay.setDate(nextDay.getDate() + 1);
+          payload.arrivalTime = nextDay.toISOString();
+        } else {
+          payload.arrivalTime = arrivalDate.toISOString();
+        }
+      }
       if (formData.kmStart) payload.kmStart = Number(formData.kmStart);
       if (formData.kmEnd) payload.kmEnd = Number(formData.kmEnd);
       if (formData.tripType) payload.tripType = formData.tripType;
@@ -342,16 +406,27 @@ export default function EditTripPage() {
             <select
               required
               value={formData.vehicleId}
-              onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
+              onChange={(e) => handleVehicleChange(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Seleccionar carro</option>
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.plate} - {v.brand} {v.model}
+                  {v.odometer !== undefined && v.odometer !== null 
+                    ? ` (${Number(v.odometer).toLocaleString('es-ES')} km)`
+                    : ''}
                 </option>
               ))}
             </select>
+            {formData.vehicleId && (() => {
+              const selectedVehicle = vehicles.find((v) => v.id === formData.vehicleId);
+              return selectedVehicle && selectedVehicle.odometer !== undefined && selectedVehicle.odometer !== null ? (
+                <p className="mt-1 text-sm text-gray-600">
+                  Odómetro del vehículo: <span className="font-semibold">{Number(selectedVehicle.odometer).toLocaleString('es-ES')} km</span>
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
 
@@ -362,16 +437,27 @@ export default function EditTripPage() {
           </label>
           <select
             value={formData.trailerBodyId}
-            onChange={(e) => setFormData({ ...formData, trailerBodyId: e.target.value })}
+            onChange={(e) => handleTrailerBodyChange(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Seleccionar cuerpo de arrastre (opcional)</option>
             {trailerBodies.map((tb) => (
               <option key={tb.id} value={tb.id}>
                 {tb.plate} - {tb.brand} {tb.model} ({tb.type})
+                {tb.odometer !== undefined && tb.odometer !== null 
+                  ? ` (${Number(tb.odometer).toLocaleString('es-ES')} km)`
+                  : ''}
               </option>
             ))}
           </select>
+          {formData.trailerBodyId && (() => {
+            const selectedTrailer = trailerBodies.find((tb) => tb.id === formData.trailerBodyId);
+            return selectedTrailer && selectedTrailer.odometer !== undefined && selectedTrailer.odometer !== null ? (
+              <p className="mt-1 text-sm text-gray-600">
+                Odómetro del cuerpo de arrastre: <span className="font-semibold">{Number(selectedTrailer.odometer).toLocaleString('es-ES')} km</span>
+              </p>
+            ) : null;
+          })()}
           {trailerBodies.length === 0 && formData.date && (
             <p className="mt-1 text-sm text-gray-500">No hay cuerpos de arrastre disponibles para esta fecha</p>
           )}
@@ -499,28 +585,55 @@ export default function EditTripPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Km Inicial
+                Km Inicial *
               </label>
               <input
                 type="number"
                 min="0"
+                step="0.01"
+                required
                 value={formData.kmStart}
-                onChange={(e) => setFormData({ ...formData, kmStart: e.target.value })}
+                onChange={(e) => {
+                  const newKmStart = e.target.value;
+                  // Recalcular kmEnd si hay ruta seleccionada
+                  let newKmEnd = formData.kmEnd;
+                  if (newKmStart && formData.routeId) {
+                    const route = routes.find((r) => r.id === formData.routeId);
+                    if (route && route.distanceKm) {
+                      const kmStartNum = Number(newKmStart);
+                      const distanceNum = Number(route.distanceKm);
+                      if (!isNaN(kmStartNum) && !isNaN(distanceNum)) {
+                        newKmEnd = String(kmStartNum + distanceNum);
+                      }
+                    }
+                  }
+                  setFormData({ ...formData, kmStart: newKmStart, kmEnd: newKmEnd });
+                }}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Se selecciona automáticamente del vehículo"
               />
+              {!formData.vehicleId && (
+                <p className="mt-1 text-xs text-gray-500">Selecciona un vehículo para llenar automáticamente</p>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Km Final
+                Km Final *
               </label>
               <input
                 type="number"
                 min="0"
+                step="0.01"
+                required
                 value={formData.kmEnd}
                 onChange={(e) => setFormData({ ...formData, kmEnd: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Se calcula automáticamente con la ruta"
               />
+              {!formData.routeId && formData.kmStart && (
+                <p className="mt-1 text-xs text-gray-500">Selecciona una ruta para calcular automáticamente</p>
+              )}
             </div>
 
             <div>

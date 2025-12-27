@@ -37,6 +37,7 @@ export class TripsService {
         model: true,
         type: true,
         category: true,
+        odometer: true,
       },
     });
 
@@ -160,23 +161,59 @@ export class TripsService {
       createTripDto.driver2Id = undefined;
     }
 
+    // Obtener ruta si existe para calcular kmEnd automáticamente
+    let route = null;
+    if (createTripDto.routeId) {
+      route = await this.prisma.route.findFirst({
+        where: { id: createTripDto.routeId, companyId },
+        select: { id: true, distanceKm: true },
+      });
+    }
+
+    // Obtener odómetros de vehículos si no se proporciona kmStart
+    let kmStart = createTripDto.kmStart;
+    if (!kmStart && vehicle) {
+      kmStart = Number(vehicle.odometer);
+    }
+
+    // Calcular kmEnd automáticamente si hay ruta, kmStart y distanceKm
+    let kmEnd = createTripDto.kmEnd;
+    if (!kmEnd && route && route.distanceKm && kmStart) {
+      kmEnd = Number(kmStart) + Number(route.distanceKm);
+    }
+
     // Validaciones
-    if (createTripDto.kmEnd && createTripDto.kmStart && createTripDto.kmEnd < createTripDto.kmStart) {
+    if (kmEnd && kmStart && kmEnd < kmStart) {
       throw new BadRequestException('kmEnd debe ser mayor o igual a kmStart');
     }
 
-    if (createTripDto.arrivalTime && createTripDto.departureTime) {
-      const arrival = new Date(createTripDto.arrivalTime);
-      const departure = new Date(createTripDto.departureTime);
+    // Normalizar fechas de horas: si arrivalTime < departureTime, asumir que arrivalTime es del día siguiente
+    let normalizedDepartureTime = createTripDto.departureTime;
+    let normalizedArrivalTime = createTripDto.arrivalTime;
+    
+    if (normalizedDepartureTime && normalizedArrivalTime) {
+      const departure = new Date(normalizedDepartureTime);
+      const arrival = new Date(normalizedArrivalTime);
+      
+      // Si la hora de llegada es menor que la de salida, asumir que es del día siguiente
       if (arrival < departure) {
-        throw new BadRequestException('arrivalTime debe ser mayor o igual a departureTime');
+        // Calcular diferencia en milisegundos
+        const diffMs = arrival.getTime() - departure.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+        
+        // Si la diferencia es negativa y razonable (menos de 24 horas), agregar 1 día
+        if (diffHours < 0 && Math.abs(diffHours) < 24) {
+          const nextDayArrival = new Date(arrival);
+          nextDayArrival.setDate(nextDayArrival.getDate() + 1);
+          normalizedArrivalTime = nextDayArrival.toISOString();
+        }
       }
     }
 
     // Calcular kmTotal si no se proporciona
     let kmTotal = createTripDto.kmTotal;
-    if (!kmTotal && createTripDto.kmStart && createTripDto.kmEnd) {
-      kmTotal = createTripDto.kmEnd - createTripDto.kmStart;
+    if (!kmTotal && kmStart && kmEnd) {
+      kmTotal = Number(kmEnd) - Number(kmStart);
     }
 
     // Convertir fecha a formato ISO-8601 DateTime si es necesario
@@ -190,6 +227,10 @@ export class TripsService {
       data: {
         ...createTripDto,
         date,
+        departureTime: normalizedDepartureTime,
+        arrivalTime: normalizedArrivalTime,
+        kmStart: kmStart ? Number(kmStart) : null,
+        kmEnd: kmEnd ? Number(kmEnd) : null,
         kmTotal,
         companyId,
         createdById,
@@ -406,16 +447,96 @@ export class TripsService {
       }
     }
 
+    // Obtener vehículo actual si no se está actualizando
+    const currentVehicleId = updateTripDto.vehicleId || existingTrip.vehicleId;
+    const currentVehicle = await this.prisma.vehicle.findFirst({
+      where: { id: currentVehicleId, companyId },
+      select: { id: true, odometer: true },
+    });
+
+    // Obtener cuerpo de arrastre actual si no se está actualizando
+    const currentTrailerBodyId = updateTripDto.trailerBodyId !== undefined ? updateTripDto.trailerBodyId : existingTrip.trailerBodyId;
+    let currentTrailerBody = null;
+    if (currentTrailerBodyId) {
+      currentTrailerBody = await this.prisma.vehicle.findFirst({
+        where: { id: currentTrailerBodyId, companyId },
+        select: { id: true, odometer: true },
+      });
+    }
+
+    // Obtener ruta si existe para calcular kmEnd automáticamente
+    const currentRouteId = updateTripDto.routeId !== undefined ? updateTripDto.routeId : existingTrip.routeId;
+    let route = null;
+    if (currentRouteId) {
+      route = await this.prisma.route.findFirst({
+        where: { id: currentRouteId, companyId },
+        select: { id: true, distanceKm: true },
+      });
+    }
+
+    // Obtener kmStart: del DTO, del vehículo actual, o del viaje existente
+    let kmStart = updateTripDto.kmStart;
+    if (!kmStart) {
+      if (currentVehicle && !existingTrip.kmStart) {
+        // Si no hay kmStart y hay vehículo, usar su odómetro
+        kmStart = Number(currentVehicle.odometer);
+      } else {
+        kmStart = existingTrip.kmStart ? Number(existingTrip.kmStart) : null;
+      }
+    }
+
+    // Calcular kmEnd automáticamente si hay ruta, kmStart y distanceKm
+    let kmEnd = updateTripDto.kmEnd;
+    if (!kmEnd && route && route.distanceKm && kmStart) {
+      kmEnd = Number(kmStart) + Number(route.distanceKm);
+    } else if (!kmEnd && existingTrip.kmEnd) {
+      kmEnd = Number(existingTrip.kmEnd);
+    }
+
     // Validaciones
-    if (updateTripDto.kmEnd && updateTripDto.kmStart && updateTripDto.kmEnd < updateTripDto.kmStart) {
+    if (kmEnd && kmStart && kmEnd < kmStart) {
       throw new BadRequestException('kmEnd debe ser mayor o igual a kmStart');
     }
 
     // Calcular kmTotal si se actualizan kmStart o kmEnd
     let kmTotal = updateTripDto.kmTotal;
-    if (!kmTotal && updateTripDto.kmStart && updateTripDto.kmEnd) {
-      kmTotal = updateTripDto.kmEnd - updateTripDto.kmStart;
+    if (!kmTotal && kmStart && kmEnd) {
+      kmTotal = Number(kmEnd) - Number(kmStart);
+    } else if (!kmTotal && existingTrip.kmTotal) {
+      kmTotal = Number(existingTrip.kmTotal);
     }
+
+    // Normalizar fechas de horas: si arrivalTime < departureTime, asumir que arrivalTime es del día siguiente
+    let normalizedDepartureTime = updateTripDto.departureTime !== undefined 
+      ? updateTripDto.departureTime 
+      : existingTrip.departureTime ? (existingTrip.departureTime as Date).toISOString() : null;
+    let normalizedArrivalTime = updateTripDto.arrivalTime !== undefined 
+      ? updateTripDto.arrivalTime 
+      : existingTrip.arrivalTime ? (existingTrip.arrivalTime as Date).toISOString() : null;
+    
+    if (normalizedDepartureTime && normalizedArrivalTime) {
+      const departure = new Date(normalizedDepartureTime);
+      const arrival = new Date(normalizedArrivalTime);
+      
+      // Si la hora de llegada es menor que la de salida, asumir que es del día siguiente
+      if (arrival < departure) {
+        // Calcular diferencia en milisegundos
+        const diffMs = arrival.getTime() - departure.getTime();
+        const diffHours = diffMs / (1000 * 60 * 60);
+        
+        // Si la diferencia es negativa y razonable (menos de 24 horas), agregar 1 día
+        if (diffHours < 0 && Math.abs(diffHours) < 24) {
+          const nextDayArrival = new Date(arrival);
+          nextDayArrival.setDate(nextDayArrival.getDate() + 1);
+          normalizedArrivalTime = nextDayArrival.toISOString();
+        }
+      }
+    }
+
+    // Detectar cambio de estado a COMPLETED
+    const wasCompleted = existingTrip.status === 'COMPLETED';
+    const willBeCompleted = updateTripDto.status === 'COMPLETED';
+    const isBeingCompleted = !wasCompleted && willBeCompleted;
 
     // Convertir fecha a formato ISO-8601 DateTime si es necesario
     let date = updateTripDto.date;
@@ -424,13 +545,27 @@ export class TripsService {
       date = new Date(date + 'T00:00:00.000Z').toISOString();
     }
 
-    return this.prisma.trip.update({
+    // Preparar datos de actualización
+    const updateData: any = {
+      ...updateTripDto,
+      date,
+      kmStart: kmStart ? Number(kmStart) : null,
+      kmEnd: kmEnd ? Number(kmEnd) : null,
+      kmTotal,
+    };
+
+    // Solo incluir las horas normalizadas si se están actualizando
+    if (updateTripDto.departureTime !== undefined) {
+      updateData.departureTime = normalizedDepartureTime;
+    }
+    if (updateTripDto.arrivalTime !== undefined) {
+      updateData.arrivalTime = normalizedArrivalTime;
+    }
+
+    // Actualizar el viaje
+    const updatedTrip = await this.prisma.trip.update({
       where: { id },
-      data: {
-        ...updateTripDto,
-        date,
-        kmTotal,
-      },
+      data: updateData,
       include: {
         vehicle: true,
         trailerBody: true,
@@ -439,6 +574,27 @@ export class TripsService {
         route: true,
       },
     });
+
+    // Si el viaje se está completando y hay kmEnd, actualizar odómetros
+    if (isBeingCompleted && kmEnd) {
+      // Actualizar odómetro del vehículo
+      if (currentVehicle) {
+        await this.prisma.vehicle.update({
+          where: { id: currentVehicle.id },
+          data: { odometer: Number(kmEnd) },
+        });
+      }
+
+      // Actualizar odómetro del cuerpo de arrastre si existe
+      if (currentTrailerBody) {
+        await this.prisma.vehicle.update({
+          where: { id: currentTrailerBody.id },
+          data: { odometer: Number(kmEnd) },
+        });
+      }
+    }
+
+    return updatedTrip;
   }
 
   async remove(id: string, companyId: string) {
