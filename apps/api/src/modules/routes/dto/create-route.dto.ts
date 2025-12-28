@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { RouteFixedExpenseItemDto } from './route-fixed-expense-item.dto';
 
 export class CreateRouteDto {
   @ApiProperty()
@@ -27,4 +29,11 @@ export class CreateRouteDto {
   @IsOptional()
   @IsNumber()
   estimatedHours?: number;
+
+  @ApiProperty({ required: false, type: [RouteFixedExpenseItemDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RouteFixedExpenseItemDto)
+  fixedExpenses?: RouteFixedExpenseItemDto[];
 }

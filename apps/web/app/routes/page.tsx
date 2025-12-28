@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 
+interface RouteFixedExpense {
+  id?: string;
+  expenseTypeId: string;
+  amount: number;
+  expenseType?: {
+    id: string;
+    name: string;
+  };
+}
+
 interface Route {
   id: string;
   code: string;
@@ -12,6 +22,14 @@ interface Route {
   destination: string;
   distanceKm?: number;
   estimatedHours?: number;
+  fixedExpenses?: RouteFixedExpense[];
+}
+
+interface ExpenseType {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
 }
 
 export default function RoutesPage() {
@@ -49,9 +67,17 @@ export default function RoutesPage() {
     setIsModalOpen(true);
   };
 
-  const handleEdit = (route: Route) => {
-    setSelectedRoute(route);
-    setIsModalOpen(true);
+  const handleEdit = async (route: Route) => {
+    try {
+      // Cargar la ruta completa con gastos fijos
+      const response = await api.get(`/routes/${route.id}`);
+      setSelectedRoute(response.data);
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('Error loading route details:', error);
+      setSelectedRoute(route);
+      setIsModalOpen(true);
+    }
   };
 
   const handleSave = async (route: Route) => {
@@ -65,6 +91,16 @@ export default function RoutesPage() {
 
       if (route.distanceKm) payload.distanceKm = Number(route.distanceKm);
       if (route.estimatedHours) payload.estimatedHours = Number(route.estimatedHours);
+
+      // Incluir gastos fijos si existen
+      if (route.fixedExpenses && route.fixedExpenses.length > 0) {
+        payload.fixedExpenses = route.fixedExpenses.map((fe) => ({
+          expenseTypeId: fe.expenseTypeId,
+          amount: Number(fe.amount),
+        }));
+      } else {
+        payload.fixedExpenses = [];
+      }
 
       if (route.id) {
         await api.patch(`/routes/${route.id}`, payload);
@@ -243,9 +279,42 @@ function RouteModal({
     destination: route?.destination || '',
     distanceKm: route?.distanceKm || undefined,
     estimatedHours: route?.estimatedHours || undefined,
+    fixedExpenses: route?.fixedExpenses || [],
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [expenseTypes, setExpenseTypes] = useState<ExpenseType[]>([]);
+  const [loadingExpenseTypes, setLoadingExpenseTypes] = useState(false);
+
+  // Actualizar formData cuando cambie la prop route
+  useEffect(() => {
+    setFormData({
+      id: route?.id || '',
+      code: route?.code || '',
+      name: route?.name || '',
+      origin: route?.origin || '',
+      destination: route?.destination || '',
+      distanceKm: route?.distanceKm || undefined,
+      estimatedHours: route?.estimatedHours || undefined,
+      fixedExpenses: route?.fixedExpenses || [],
+    });
+  }, [route]);
+
+  // Cargar tipos de gastos al abrir el modal
+  useEffect(() => {
+    const loadExpenseTypes = async () => {
+      try {
+        setLoadingExpenseTypes(true);
+        const response = await api.get('/expense-types?activeOnly=true&page=1&limit=100');
+        setExpenseTypes(response.data.data || []);
+      } catch (error) {
+        console.error('Error loading expense types:', error);
+      } finally {
+        setLoadingExpenseTypes(false);
+      }
+    };
+    loadExpenseTypes();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -380,6 +449,100 @@ function RouteModal({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base"
                 />
               </div>
+            </div>
+
+            {/* Gastos Fijos */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  Gastos Fijos
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newExpense: RouteFixedExpense = {
+                      expenseTypeId: '',
+                      amount: 0,
+                    };
+                    setFormData({
+                      ...formData,
+                      fixedExpenses: [...(formData.fixedExpenses || []), newExpense],
+                    });
+                  }}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  + Agregar Gasto
+                </button>
+              </div>
+
+              {formData.fixedExpenses && formData.fixedExpenses.length > 0 ? (
+                <div className="space-y-3">
+                  {formData.fixedExpenses.map((expense, index) => (
+                    <div key={index} className="flex gap-2 items-end">
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Tipo de Gasto
+                        </label>
+                        <select
+                          value={expense.expenseTypeId}
+                          onChange={(e) => {
+                            const updated = [...formData.fixedExpenses!];
+                            updated[index] = {
+                              ...updated[index],
+                              expenseTypeId: e.target.value,
+                            };
+                            setFormData({ ...formData, fixedExpenses: updated });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          required
+                        >
+                          <option value="">Seleccionar...</option>
+                          {expenseTypes.map((et) => (
+                            <option key={et.id} value={et.id}>
+                              {et.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Valor
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={expense.amount || ''}
+                          onChange={(e) => {
+                            const updated = [...formData.fixedExpenses!];
+                            updated[index] = {
+                              ...updated[index],
+                              amount: parseFloat(e.target.value) || 0,
+                            };
+                            setFormData({ ...formData, fixedExpenses: updated });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = formData.fixedExpenses!.filter((_, i) => i !== index);
+                          setFormData({ ...formData, fixedExpenses: updated });
+                        }}
+                        className="px-3 py-2 text-red-600 hover:text-red-800 text-sm font-medium"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">
+                  No hay gastos fijos. Los gastos fijos se añadirán automáticamente cuando se cree un viaje con esta ruta.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-4 border-t">

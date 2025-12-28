@@ -223,25 +223,57 @@ export class TripsService {
       date = new Date(date + 'T00:00:00.000Z').toISOString();
     }
 
-    return this.prisma.trip.create({
-      data: {
-        ...createTripDto,
-        date,
-        departureTime: normalizedDepartureTime,
-        arrivalTime: normalizedArrivalTime,
-        kmStart: kmStart ? Number(kmStart) : null,
-        kmEnd: kmEnd ? Number(kmEnd) : null,
-        kmTotal,
-        companyId,
-        createdById,
-      },
-      include: {
-        vehicle: true,
-        trailerBody: true,
-        driver1: true,
-        driver2: true,
-        route: true,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      // Crear el viaje
+      const trip = await tx.trip.create({
+        data: {
+          ...createTripDto,
+          date,
+          departureTime: normalizedDepartureTime,
+          arrivalTime: normalizedArrivalTime,
+          kmStart: kmStart ? Number(kmStart) : null,
+          kmEnd: kmEnd ? Number(kmEnd) : null,
+          kmTotal,
+          companyId,
+          createdById,
+        },
+      });
+
+      // Si hay una ruta asociada, buscar y crear los gastos fijos automáticamente
+      if (createTripDto.routeId) {
+        const routeFixedExpenses = await tx.routeFixedExpense.findMany({
+          where: {
+            routeId: createTripDto.routeId,
+          },
+        });
+
+        if (routeFixedExpenses.length > 0) {
+          await tx.tripExpense.createMany({
+            data: routeFixedExpenses.map((rfe) => ({
+              tripId: trip.id,
+              expenseTypeId: rfe.expenseTypeId,
+              amount: rfe.amount,
+            })),
+          });
+        }
+      }
+
+      // Devolver el viaje con todas sus relaciones
+      return tx.trip.findUnique({
+        where: { id: trip.id },
+        include: {
+          vehicle: true,
+          trailerBody: true,
+          driver1: true,
+          driver2: true,
+          route: true,
+          expenses: {
+            include: {
+              expenseType: true,
+            },
+          },
+        },
+      });
     });
   }
 

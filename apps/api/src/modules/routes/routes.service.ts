@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateRouteDto } from './dto/create-route.dto';
 import { UpdateRouteDto } from './dto/update-route.dto';
@@ -8,11 +8,51 @@ export class RoutesService {
   constructor(private prisma: PrismaService) {}
 
   async create(createRouteDto: CreateRouteDto, companyId: string) {
-    return this.prisma.route.create({
-      data: {
-        ...createRouteDto,
-        companyId,
-      },
+    const { fixedExpenses, ...routeData } = createRouteDto;
+
+    // Validar que todos los expenseTypeId pertenezcan a la misma compañía
+    if (fixedExpenses && fixedExpenses.length > 0) {
+      const expenseTypeIds = fixedExpenses.map((fe) => fe.expenseTypeId);
+      const expenseTypes = await this.prisma.expenseType.findMany({
+        where: {
+          id: { in: expenseTypeIds },
+          companyId,
+        },
+      });
+
+      if (expenseTypes.length !== expenseTypeIds.length) {
+        throw new BadRequestException('Uno o más tipos de gasto no pertenecen a la compañía');
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const route = await tx.route.create({
+        data: {
+          ...routeData,
+          companyId,
+        },
+      });
+
+      if (fixedExpenses && fixedExpenses.length > 0) {
+        await tx.routeFixedExpense.createMany({
+          data: fixedExpenses.map((fe) => ({
+            routeId: route.id,
+            expenseTypeId: fe.expenseTypeId,
+            amount: fe.amount,
+          })),
+        });
+      }
+
+      return tx.route.findUnique({
+        where: { id: route.id },
+        include: {
+          fixedExpenses: {
+            include: {
+              expenseType: true,
+            },
+          },
+        },
+      });
     });
   }
 
@@ -60,6 +100,14 @@ export class RoutesService {
             driver1: true,
           },
         },
+        fixedExpenses: {
+          include: {
+            expenseType: true,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
 
@@ -72,9 +120,63 @@ export class RoutesService {
 
   async update(id: string, updateRouteDto: UpdateRouteDto, companyId: string) {
     await this.findOne(id, companyId);
-    return this.prisma.route.update({
-      where: { id },
-      data: updateRouteDto,
+
+    const { fixedExpenses, ...routeData } = updateRouteDto;
+
+    // Validar que todos los expenseTypeId pertenezcan a la misma compañía si se proporcionan
+    if (fixedExpenses && fixedExpenses.length > 0) {
+      const expenseTypeIds = fixedExpenses.map((fe) => fe.expenseTypeId);
+      const expenseTypes = await this.prisma.expenseType.findMany({
+        where: {
+          id: { in: expenseTypeIds },
+          companyId,
+        },
+      });
+
+      if (expenseTypes.length !== expenseTypeIds.length) {
+        throw new BadRequestException('Uno o más tipos de gasto no pertenecen a la compañía');
+      }
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Actualizar los datos de la ruta
+      const route = await tx.route.update({
+        where: { id },
+        data: routeData,
+      });
+
+      // Manejar gastos fijos si se proporcionan
+      if (fixedExpenses !== undefined) {
+        // Eliminar todos los gastos fijos existentes
+        await tx.routeFixedExpense.deleteMany({
+          where: { routeId: id },
+        });
+
+        // Crear los nuevos gastos fijos
+        if (fixedExpenses.length > 0) {
+          await tx.routeFixedExpense.createMany({
+            data: fixedExpenses.map((fe) => ({
+              routeId: id,
+              expenseTypeId: fe.expenseTypeId,
+              amount: fe.amount,
+            })),
+          });
+        }
+      }
+
+      return tx.route.findUnique({
+        where: { id },
+        include: {
+          fixedExpenses: {
+            include: {
+              expenseType: true,
+            },
+            orderBy: {
+              createdAt: 'asc',
+            },
+          },
+        },
+      });
     });
   }
 

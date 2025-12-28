@@ -169,6 +169,7 @@ model Route {
 
   company         Company  @relation(fields: [companyId], references: [id])
   trips           Trip[]
+  fixedExpenses   RouteFixedExpense[]
 
   @@index([companyId])
   @@index([code])
@@ -240,6 +241,7 @@ model ExpenseType {
 
   company     Company      @relation(fields: [companyId], references: [id])
   tripExpenses TripExpense[]
+  routeFixedExpenses RouteFixedExpense[]
 
   @@index([companyId])
   @@index([active])
@@ -261,6 +263,23 @@ model TripExpense {
   @@index([tripId])
   @@index([expenseTypeId])
   @@map("trip_expenses")
+}
+
+model RouteFixedExpense {
+  id            String      @id @default(uuid())
+  routeId       String      @map("route_id")
+  expenseTypeId String      @map("expense_type_id")
+  amount        Decimal     @db.Decimal(10, 2)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  route         Route       @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  expenseType   ExpenseType @relation(fields: [expenseTypeId], references: [id])
+
+  @@unique([routeId, expenseTypeId])
+  @@index([routeId])
+  @@index([expenseTypeId])
+  @@map("route_fixed_expenses")
 }
 
 // ============================================
