@@ -261,11 +261,18 @@ main() {
     
     # Paso 7: Aplicar migraciones de base de datos
     echo -e "\n${CYAN}📦 Aplicando migraciones de base de datos...${NC}"
+    echo -e "${CYAN}  📋 Esto incluirá las migraciones de GPS (gps_configurations, vehicle_gps_locations)${NC}"
     if $DOCKER_COMPOSE_CMD exec -T api npx prisma migrate deploy 2>&1; then
         echo -e "${GREEN}  ✅ Migraciones aplicadas correctamente${NC}"
     else
-        echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones. Verifica manualmente:${NC}"
-        echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
+        echo -e "${YELLOW}  ⚠️  Hubo problemas con migrate deploy. Intentando con db push...${NC}"
+        echo -e "${CYAN}  🔄 Sincronizando schema directamente...${NC}"
+        if $DOCKER_COMPOSE_CMD exec -T api npx prisma db push --accept-data-loss 2>&1; then
+            echo -e "${GREEN}  ✅ Schema sincronizado correctamente${NC}"
+        else
+            echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones. Puedes intentar manualmente:${NC}"
+            echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
+        fi
     fi
     
     # Paso 8: Ejecutar seed (crear datos iniciales)

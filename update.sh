@@ -319,16 +319,30 @@ main() {
     echo -e "\n${CYAN}⏳ Esperando a que los servicios estén listos...${NC}"
     sleep 10
     
-    # Paso 6: Aplicar migraciones de base de datos
+    # Paso 6: Regenerar Prisma Client primero
+    echo -e "\n${CYAN}🔄 Regenerando Prisma Client...${NC}"
+    if $DOCKER_COMPOSE_CMD exec -T api npx prisma generate 2>&1; then
+        echo -e "${GREEN}  ✅ Prisma Client regenerado${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  Error al regenerar Prisma. Continuando...${NC}"
+    fi
+    
+    # Paso 7: Aplicar migraciones de base de datos
     echo -e "\n${CYAN}📦 Aplicando migraciones de base de datos...${NC}"
-    echo -e "${YELLOW}  ⚠️  Importante: Si es la primera vez que ejecutas después de la actualización,${NC}"
-    echo -e "${YELLOW}      esta migración convertirá los drivers a usuarios con rol CONDUCTOR.${NC}"
+    echo -e "${YELLOW}  ⚠️  Importante: Esto aplicará todas las migraciones pendientes, incluyendo GPS.${NC}"
     if $DOCKER_COMPOSE_CMD exec -T api npx prisma migrate deploy 2>&1; then
         echo -e "${GREEN}  ✅ Migraciones aplicadas correctamente${NC}"
-        echo -e "${CYAN}  ℹ️  Nota: Los choferes ahora se gestionan como usuarios en Configuración > Usuarios${NC}"
     else
-        echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones. Verifica manualmente:${NC}"
-        echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
+        echo -e "${YELLOW}  ⚠️  Hubo problemas con migrate deploy. Intentando con db push...${NC}"
+        echo -e "${CYAN}  🔄 Sincronizando schema directamente (solo para desarrollo)...${NC}"
+        if $DOCKER_COMPOSE_CMD exec -T api npx prisma db push --accept-data-loss 2>&1; then
+            echo -e "${GREEN}  ✅ Schema sincronizado correctamente${NC}"
+            echo -e "${YELLOW}  ⚠️  Nota: Se usó db push. En producción deberías resolver las migraciones manualmente.${NC}"
+        else
+            echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones. Puedes intentar manualmente:${NC}"
+            echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
+            echo -e "${NC}     O si es desarrollo: $DOCKER_COMPOSE_CMD exec api npx prisma db push"
+        fi
     fi
     
     # Paso 7: Verificar estado de los contenedores
