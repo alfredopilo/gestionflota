@@ -18,6 +18,7 @@ interface Vehicle {
   status: string;
   odometer: number;
   hourmeter: number;
+  deviceCode?: string;
   lastMaintenanceDate?: string;
   nextMaintenanceEstimated?: string;
   assignments?: Array<{
@@ -105,6 +106,7 @@ export default function VehiclesPage() {
 
       if (vehicle.year) payload.year = Number(vehicle.year);
       if (vehicle.vin?.trim()) payload.vin = vehicle.vin.trim();
+      if (vehicle.deviceCode?.trim()) payload.deviceCode = vehicle.deviceCode.trim();
       if (vehicle.capacity && vehicle.capacity > 0) {
         payload.capacity = String(vehicle.capacity);
       }

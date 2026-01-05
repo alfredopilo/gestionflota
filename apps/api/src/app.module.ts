@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { Reflector } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './common/prisma/prisma.module';
@@ -16,6 +17,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { RoutesModule } from './modules/routes/routes.module';
 import { ExpenseTypesModule } from './modules/expense-types/expense-types.module';
+import { GpsModule } from './modules/gps/gps.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -25,6 +27,7 @@ import { RolesGuard } from './common/guards/roles.guard';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -37,6 +40,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     AdminModule,
     RoutesModule,
     ExpenseTypesModule,
+    GpsModule,
   ],
   controllers: [AppController],
   providers: [

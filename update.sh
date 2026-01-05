@@ -293,6 +293,9 @@ main() {
         echo -e "\n${CYAN}🔨 Reconstruyendo imágenes Docker (esto puede tardar varios minutos)...${NC}"
         echo -e "${YELLOW}  💡 Tip: Si tienes problemas de espacio, puedes limpiar más agresivamente con:${NC}"
         echo -e "${NC}     docker system prune -a --volumes -f"
+        echo -e "${CYAN}  📦 Instalando dependencias incluyendo:${NC}"
+        echo -e "${NC}     - Frontend: Next.js, Leaflet, React-Leaflet, @types/leaflet"
+        echo -e "${NC}     - Backend: NestJS, Prisma, @nestjs/schedule, y todas las dependencias GPS"
         
         # Construir con cache inteligente: usar cache para dependencias, rebuild solo código
         if safe_command "$DOCKER_COMPOSE_CMD build api web" "Reconstruyendo imágenes" false; then
@@ -363,6 +366,12 @@ main() {
     echo -e "${NC}   Ver logs Web:     $DOCKER_COMPOSE_CMD logs -f web"
     echo -e "${NC}   Detener todo:     $DOCKER_COMPOSE_CMD down"
     echo -e "${NC}   Reiniciar:        $DOCKER_COMPOSE_CMD restart"
+    
+    echo -e "\n${CYAN}✨ Funcionalidades Actualizadas:${NC}"
+    echo -e "${NC}   ✅ Visualización GPS Global (Mapa GPS) - Nueva página en el menú"
+    echo -e "${NC}   ✅ Historial de ubicaciones GPS con mapas interactivos"
+    echo -e "${NC}   ✅ Colores dinámicos para múltiples vehículos"
+    echo -e "${NC}   ✅ Rutas automáticas para rangos ≤ 2 días"
     
     echo -e "\n${GREEN}✨ ¡Sistema actualizado y listo para usar!${NC}"
 }

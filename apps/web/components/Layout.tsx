@@ -65,6 +65,7 @@ export default function Layout({ children }: LayoutProps) {
   > = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
     { name: 'Flota', path: '/vehicles', icon: '🚗' },
+    { name: 'Mapa GPS', path: '/gps-map', icon: '📍' },
     { name: 'Rutas', path: '/routes', icon: '🗺️' },
     { name: 'Viajes', path: '/trips', icon: '🛣️' },
     { name: 'Tipos de Gastos', path: '/expense-types', icon: '💰' },
@@ -77,6 +78,7 @@ export default function Layout({ children }: LayoutProps) {
       children: [
         { name: 'Usuarios', path: '/config/usuarios', icon: '👤' },
         { name: 'Configuración', path: '/admin', icon: '🔧' },
+        { name: 'Configuración GPS', path: '/admin/gps-config', icon: '📍' },
       ],
     },
   ];

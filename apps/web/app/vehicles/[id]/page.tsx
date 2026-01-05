@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import api from '@/lib/api';
+
+// Importar componente del mapa dinámicamente (SSR deshabilitado para Leaflet)
+const GpsMapView = dynamic(() => import('@/components/GpsMapView'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-[600px]">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  ),
+});
 
 interface Vehicle {
   id: string;
@@ -16,6 +27,7 @@ interface Vehicle {
   status: string;
   odometer: number;
   hourmeter: number;
+  deviceCode?: string;
   lastMaintenanceDate?: string;
   nextMaintenanceEstimated?: string;
   assignments?: Array<{
@@ -58,7 +70,7 @@ export default function VehicleDetailPage() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'info' | 'trips' | 'maintenance'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'trips' | 'maintenance' | 'gps'>('info');
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -228,6 +240,16 @@ export default function VehicleDetailPage() {
           >
             Mantenimiento ({vehicle.workOrders?.length || 0})
           </button>
+          <button
+            onClick={() => setActiveTab('gps')}
+            className={`pb-4 px-2 font-medium transition-colors ${
+              activeTab === 'gps'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Ubicaciones GPS
+          </button>
         </div>
       </div>
 
@@ -260,6 +282,12 @@ export default function VehicleDetailPage() {
                 <div>
                   <label className="text-sm font-medium text-gray-600">VIN</label>
                   <p className="text-lg font-semibold text-gray-900">{vehicle.vin}</p>
+                </div>
+              )}
+              {vehicle.deviceCode && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Código Dispositivo GPS</label>
+                  <p className="text-lg font-semibold text-gray-900">{vehicle.deviceCode}</p>
                 </div>
               )}
               {vehicle.capacity && (
@@ -438,6 +466,25 @@ export default function VehicleDetailPage() {
             </div>
           ) : (
             <p className="text-gray-500 text-center py-8">No hay órdenes de mantenimiento para este vehículo</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'gps' && (
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Historial de Ubicaciones GPS</h2>
+          {vehicle.deviceCode ? (
+            <div className="h-[700px]">
+              <GpsMapView vehicleId={vehicleId} />
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">📡</div>
+              <p className="text-gray-600 text-lg mb-2">No hay dispositivo GPS configurado</p>
+              <p className="text-gray-500 text-sm">
+                Configure un código de dispositivo GPS para este vehículo para ver las ubicaciones en el mapa.
+              </p>
+            </div>
           )}
         </div>
       )}

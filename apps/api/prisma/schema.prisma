@@ -32,6 +32,7 @@ model Company {
   inspectionTemplates InspectionTemplate[]
   alerts    Alert[]
   expenseTypes ExpenseType[]
+  gpsConfigurations GpsConfiguration[]
 
   @@map("companies")
 }
@@ -112,6 +113,7 @@ model Vehicle {
   hourmeter               Decimal  @default(0) @db.Decimal(12, 2)
   lastMaintenanceDate     DateTime? @map("last_maintenance_date")
   nextMaintenanceEstimated DateTime? @map("next_maintenance_estimated")
+  deviceCode              String?  @map("device_code") // Código del dispositivo GPS
   companyId               String   @map("company_id")
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime @updatedAt @map("updated_at")
@@ -124,10 +126,12 @@ model Vehicle {
   workOrders        WorkOrder[]
   inspections       Inspection[]
   alerts            Alert[]
+  gpsLocations      VehicleGPSLocation[]
 
   @@index([companyId])
   @@index([plate])
   @@index([status])
+  @@index([deviceCode])
   @@map("vehicles")
 }
 
@@ -522,6 +526,54 @@ model Alert {
   @@index([type])
   @@index([acknowledgedAt])
   @@map("alerts")
+}
+
+// ============================================
+// CONFIGURACIÓN GPS
+// ============================================
+
+model GpsConfiguration {
+  id                  String   @id @default(uuid())
+  email               String
+  password            String   // Almacenado encriptado
+  syncIntervalMinutes Int      @default(5) @map("sync_interval_minutes")
+  lastSyncAt          DateTime? @map("last_sync_at")
+  lastSyncStatus      String?  @map("last_sync_status") // SUCCESS, ERROR
+  lastSyncError       String?  @map("last_sync_error")
+  companyId           String   @unique @map("company_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("gps_configurations")
+}
+
+// ============================================
+// UBICACIONES GPS DE VEHÍCULOS
+// ============================================
+
+model VehicleGPSLocation {
+  id          String   @id @default(uuid())
+  vehicleId   String   @map("vehicle_id")
+  lat         Decimal  @db.Decimal(10, 8)
+  lng         Decimal  @db.Decimal(11, 8)
+  speed       Decimal? @db.Decimal(8, 2)
+  course      Decimal? @db.Decimal(5, 2)
+  altitude    Decimal? @db.Decimal(8, 2)
+  timestamp   DateTime
+  online      String?  // "ack", "offline", etc.
+  sensors     Json?    // Datos de sensores (ignición, batería, etc.)
+  rawData     Json?    @map("raw_data") // Datos completos del JSON original
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  vehicle     Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([timestamp])
+  @@index([vehicleId, timestamp])
+  @@map("vehicle_gps_locations")
 }
 
 // ============================================

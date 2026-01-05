@@ -51,4 +51,9 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsNumber()
   hourmeter?: number;
+
+  @ApiProperty({ required: false, description: 'Código del dispositivo GPS' })
+  @IsOptional()
+  @IsString()
+  deviceCode?: string;
 }
