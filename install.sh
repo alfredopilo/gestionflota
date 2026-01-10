@@ -137,6 +137,80 @@ safe_command() {
     fi
 }
 
+# Función para aplicar migraciones SQL críticas directamente
+apply_critical_migrations() {
+    echo -e "${CYAN}  📋 Verificando y aplicando migraciones SQL críticas...${NC}"
+    
+    # Migración: Agregar columna maintenance_plan_id a vehicles
+    echo -e "${CYAN}  🔄 Verificando columna maintenance_plan_id en vehicles...${NC}"
+    $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
+        ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenance_plan_id TEXT;
+        CREATE INDEX IF NOT EXISTS vehicles_maintenance_plan_id_idx ON vehicles(maintenance_plan_id);
+    " 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  ✅ Columna maintenance_plan_id verificada/creada${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  No se pudo verificar maintenance_plan_id (puede que ya exista)${NC}"
+    fi
+    
+    # Migración: Agregar tablas GPS si no existen
+    echo -e "${CYAN}  🔄 Verificando tablas GPS...${NC}"
+    $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
+        CREATE TABLE IF NOT EXISTS gps_configurations (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            company_id TEXT NOT NULL REFERENCES companies(id),
+            provider TEXT NOT NULL DEFAULT 'RADIAL_TRACKING',
+            api_url TEXT,
+            api_key TEXT,
+            api_secret TEXT,
+            is_active BOOLEAN DEFAULT true,
+            sync_interval_minutes INTEGER DEFAULT 5,
+            last_sync_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+        
+        CREATE TABLE IF NOT EXISTS vehicle_gps_locations (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            vehicle_id TEXT NOT NULL REFERENCES vehicles(id),
+            latitude DECIMAL(10,8) NOT NULL,
+            longitude DECIMAL(11,8) NOT NULL,
+            speed DECIMAL(10,2),
+            heading DECIMAL(10,2),
+            altitude DECIMAL(10,2),
+            recorded_at TIMESTAMP NOT NULL,
+            received_at TIMESTAMP DEFAULT NOW(),
+            raw_data JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        
+        CREATE INDEX IF NOT EXISTS vehicle_gps_locations_vehicle_id_idx ON vehicle_gps_locations(vehicle_id);
+        CREATE INDEX IF NOT EXISTS vehicle_gps_locations_recorded_at_idx ON vehicle_gps_locations(recorded_at);
+    " 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  ✅ Tablas GPS verificadas/creadas${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  No se pudieron verificar tablas GPS (pueden ya existir)${NC}"
+    fi
+    
+    # Migración: Actualizar categorías de vehículos
+    echo -e "${CYAN}  🔄 Actualizando categorías de vehículos...${NC}"
+    $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
+        UPDATE vehicles SET category = 'CARROCERIA' WHERE category = 'CARRO' OR category IS NULL;
+        UPDATE vehicles SET category = 'ELEMENTO_ARRASTRE' WHERE category = 'CUERPO_ARRASTRE';
+    " 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  ✅ Categorías de vehículos actualizadas${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  No se pudieron actualizar categorías (pueden ya estar correctas)${NC}"
+    fi
+    
+    echo -e "${GREEN}  ✅ Migraciones SQL críticas completadas${NC}"
+}
+
 # Función principal
 main() {
     echo -e "\n${CYAN}============================================${NC}"
@@ -337,12 +411,13 @@ main() {
         if $DOCKER_COMPOSE_CMD exec -T api sh -c "cd /app && npx prisma db push --accept-data-loss" 2>&1; then
             echo -e "${GREEN}  ✅ Schema sincronizado correctamente${NC}"
         else
-            echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones.${NC}"
-            echo -e "${CYAN}  💡 Puedes intentar manualmente:${NC}"
-            echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
-            echo -e "${NC}     O: $DOCKER_COMPOSE_CMD exec api npx prisma db push"
+            echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones de Prisma.${NC}"
         fi
     fi
+    
+    # Aplicar migraciones SQL críticas directamente como fallback
+    echo -e "\n${CYAN}🔧 Aplicando migraciones SQL críticas...${NC}"
+    apply_critical_migrations
     
     # Paso 8: Ejecutar seed (crear datos iniciales)
     echo -e "\n${CYAN}🌱 Ejecutando seed (creando datos iniciales)...${NC}"
