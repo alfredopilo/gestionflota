@@ -195,6 +195,12 @@ export default function UsuariosPage() {
           />
         </div>
         <button
+          onClick={() => router.push('/config/usuarios/import')}
+          className="ml-4 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg hover:scale-105 transform"
+        >
+          📥 Importar
+        </button>
+        <button
           onClick={handleCreate}
           className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg hover:scale-105 transform"
         >

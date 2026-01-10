@@ -1,6 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Res, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { VehiclesService } from './vehicles.service';
+import { VehicleImporterService } from './importers/vehicle-importer.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { CreateVehicleDocumentDto } from './dto/create-vehicle-document.dto';
@@ -12,7 +17,77 @@ import { Roles } from '../../common/decorators/roles.decorator';
 @Controller('vehicles')
 @Roles('GERENCIA', 'SUPERVISOR_FLOTA')
 export class VehiclesController {
-  constructor(private readonly vehiclesService: VehiclesService) {}
+  constructor(
+    private readonly vehiclesService: VehiclesService,
+    private readonly vehicleImporterService: VehicleImporterService,
+  ) {}
+
+  @Get('template')
+  @ApiOperation({ summary: 'Descargar plantilla Excel para importar vehículos' })
+  async downloadTemplate(@Res() res: Response) {
+    const workbook = await this.vehicleImporterService.generateTemplate();
+    
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=vehiculos_plantilla.xlsx',
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  @Post('import')
+  @ApiOperation({ summary: 'Importar vehículos desde archivo Excel' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/temp',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `vehicles-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        if (!file.originalname.match(/\.(xlsx|xls)$/)) {
+          return cb(new Error('Solo se permiten archivos Excel (.xlsx, .xls)'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async importVehicles(@UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
+    if (!file) {
+      throw new Error('No se proporcionó ningún archivo');
+    }
+    
+    const result = await this.vehicleImporterService.importFromExcel(file.path, user.companyId);
+    
+    // Eliminar archivo temporal
+    const fs = require('fs');
+    try {
+      fs.unlinkSync(file.path);
+    } catch (e) {
+      console.error('Error al eliminar archivo temporal:', e);
+    }
+    
+    return result;
+  }
 
   @Post()
   @ApiOperation({ summary: 'Crear vehículo' })

@@ -98,7 +98,7 @@ export default function VehiclesPage() {
         brand: vehicle.brand?.trim(),
         model: vehicle.model?.trim(),
         type: vehicle.type,
-        category: vehicle.category || 'CARRO',
+        category: vehicle.category || 'CARROCERIA',
         status: vehicle.status,
         odometer: Number(vehicle.odometer) || 0,
         hourmeter: Number(vehicle.hourmeter) || 0,
@@ -247,6 +247,12 @@ export default function VehiclesPage() {
             />
             <span className="absolute left-3 top-2.5 sm:top-3.5 text-gray-400">🔍</span>
           </div>
+          <button
+            onClick={() => router.push('/vehicles/import')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg hover:scale-105 transform text-sm sm:text-base whitespace-nowrap"
+          >
+            📥 Importar
+          </button>
           <button
             onClick={handleCreate}
             className="bg-orange-600 hover:bg-orange-700 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 hover:shadow-lg hover:scale-105 transform text-sm sm:text-base whitespace-nowrap"

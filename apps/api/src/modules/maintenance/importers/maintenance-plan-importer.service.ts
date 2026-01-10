@@ -99,25 +99,13 @@ export class MaintenancePlanImporterService {
       );
     }
 
-    // Crear o actualizar plan de mantenimiento
+    // Crear nuevo plan de mantenimiento
+    // NOTA: Ya no se desactivan otros planes automáticamente.
+    // Se permite tener múltiples planes activos por tipo de vehículo.
+    // Los vehículos se asignan a planes específicos individualmente.
     const planName = `Plan ${vehicleType || 'General'} - ${new Date().toLocaleDateString()}`;
-    let plan = await this.prisma.maintenancePlan.findFirst({
-      where: {
-        companyId,
-        isActive: true,
-        vehicleType: vehicleType || null,
-      },
-    });
 
-    if (plan) {
-      // Desactivar plan anterior
-      await this.prisma.maintenancePlan.update({
-        where: { id: plan.id },
-        data: { isActive: false },
-      });
-    }
-
-    plan = await this.prisma.maintenancePlan.create({
+    const plan = await this.prisma.maintenancePlan.create({
       data: {
         name: planName,
         description: `Plan importado desde Excel`,

@@ -106,7 +106,7 @@ model Vehicle {
   year                    Int?
   vin                     String?  @unique
   type                    String   // camión, remolque, etc.
-  category                String   @default("CARRO") // CARRO, CUERPO_ARRASTRE
+  category                String   @default("CARROCERIA") // CARROCERIA, ELEMENTO_ARRASTRE
   capacity                String?
   status                  String   @default("ACTIVE") // ACTIVE, MAINTENANCE, INACTIVE, RETIRED
   odometer                Decimal  @default(0) @db.Decimal(12, 2)
@@ -114,12 +114,14 @@ model Vehicle {
   lastMaintenanceDate     DateTime? @map("last_maintenance_date")
   nextMaintenanceEstimated DateTime? @map("next_maintenance_estimated")
   deviceCode              String?  @map("device_code") // Código del dispositivo GPS
+  maintenancePlanId       String?  @map("maintenance_plan_id") // Plan de mantenimiento asignado
   companyId               String   @map("company_id")
   createdAt               DateTime @default(now()) @map("created_at")
   updatedAt               DateTime @updatedAt @map("updated_at")
   deletedAt               DateTime? @map("deleted_at")
 
   company           Company            @relation(fields: [companyId], references: [id])
+  maintenancePlan   MaintenancePlan?   @relation(fields: [maintenancePlanId], references: [id])
   documents         VehicleDocument[]
   tripsAsVehicle    Trip[]             @relation("TripVehicle")
   tripsAsTrailerBody Trip[]            @relation("TripTrailerBody")
@@ -132,6 +134,7 @@ model Vehicle {
   @@index([plate])
   @@index([status])
   @@index([deviceCode])
+  @@index([maintenancePlanId])
   @@map("vehicles")
 }
 
@@ -303,6 +306,7 @@ model MaintenancePlan {
   company     Company              @relation(fields: [companyId], references: [id])
   intervals   MaintenanceInterval[]
   activities  MaintenanceActivity[]
+  vehicles    Vehicle[]            // Vehículos asignados a este plan
 
   @@index([companyId])
   @@index([isActive])

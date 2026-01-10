@@ -13,7 +13,7 @@ export class TripsService {
    * Obtiene vehículos disponibles para una fecha y categoría específica
    * Verifica que el vehículo esté ACTIVE y no esté asignado a otro viaje en la misma fecha
    */
-  async getAvailableVehicles(companyId: string, date: string, category: 'CARRO' | 'CUERPO_ARRASTRE', excludeTripId?: string) {
+  async getAvailableVehicles(companyId: string, date: string, category: 'CARROCERIA' | 'ELEMENTO_ARRASTRE', excludeTripId?: string) {
     // Convertir fecha a formato Date si es necesario
     let tripDate: Date;
     if (typeof date === 'string' && !date.includes('T')) {
@@ -72,7 +72,7 @@ export class TripsService {
 
   async create(createTripDto: CreateTripDto, companyId: string, createdById: string) {
     // Validar disponibilidad del vehículo principal
-    const availableVehicles = await this.getAvailableVehicles(companyId, createTripDto.date, 'CARRO');
+    const availableVehicles = await this.getAvailableVehicles(companyId, createTripDto.date, 'CARROCERIA');
     const vehicleAvailable = availableVehicles.some((v) => v.id === createTripDto.vehicleId);
     if (!vehicleAvailable) {
       throw new BadRequestException('El vehículo seleccionado no está disponible para la fecha especificada');
@@ -85,27 +85,27 @@ export class TripsService {
     if (!vehicle) {
       throw new NotFoundException('Vehículo no encontrado');
     }
-    if (vehicle.category !== 'CARRO') {
-      throw new BadRequestException('El vehículo principal debe ser de categoría CARRO');
+    if (vehicle.category !== 'CARROCERIA') {
+      throw new BadRequestException('El vehículo principal debe ser de categoría Carrocería');
     }
 
-    // Validar disponibilidad del cuerpo de arrastre si se proporciona
+    // Validar disponibilidad del elemento de arrastre si se proporciona
     if (createTripDto.trailerBodyId) {
-      const availableTrailerBodies = await this.getAvailableVehicles(companyId, createTripDto.date, 'CUERPO_ARRASTRE');
+      const availableTrailerBodies = await this.getAvailableVehicles(companyId, createTripDto.date, 'ELEMENTO_ARRASTRE');
       const trailerAvailable = availableTrailerBodies.some((v) => v.id === createTripDto.trailerBodyId);
       if (!trailerAvailable) {
-        throw new BadRequestException('El cuerpo de arrastre seleccionado no está disponible para la fecha especificada');
+        throw new BadRequestException('El elemento de arrastre seleccionado no está disponible para la fecha especificada');
       }
 
-      // Validar que el cuerpo de arrastre sea de categoría CUERPO_ARRASTRE
+      // Validar que el elemento de arrastre sea de categoría ELEMENTO_ARRASTRE
       const trailerBody = await this.prisma.vehicle.findFirst({
         where: { id: createTripDto.trailerBodyId, companyId },
       });
       if (!trailerBody) {
-        throw new NotFoundException('Cuerpo de arrastre no encontrado');
+        throw new NotFoundException('Elemento de arrastre no encontrado');
       }
-      if (trailerBody.category !== 'CUERPO_ARRASTRE') {
-        throw new BadRequestException('El cuerpo de arrastre debe ser de categoría CUERPO_ARRASTRE');
+      if (trailerBody.category !== 'ELEMENTO_ARRASTRE') {
+        throw new BadRequestException('El elemento de arrastre debe ser de categoría Elemento de Arrastre');
       }
     }
 
@@ -385,7 +385,7 @@ export class TripsService {
 
     // Validar disponibilidad del vehículo principal si se actualiza
     if (updateTripDto.vehicleId && updateTripDto.vehicleId !== existingTrip.vehicleId) {
-      const availableVehicles = await this.getAvailableVehicles(companyId, tripDate, 'CARRO', id);
+      const availableVehicles = await this.getAvailableVehicles(companyId, tripDate, 'CARROCERIA', id);
       const vehicleAvailable = availableVehicles.some((v) => v.id === updateTripDto.vehicleId);
       if (!vehicleAvailable) {
         throw new BadRequestException('El vehículo seleccionado no está disponible para la fecha especificada');
@@ -397,28 +397,28 @@ export class TripsService {
       if (!vehicle) {
         throw new NotFoundException('Vehículo no encontrado');
       }
-      if (vehicle.category !== 'CARRO') {
-        throw new BadRequestException('El vehículo principal debe ser de categoría CARRO');
+      if (vehicle.category !== 'CARROCERIA') {
+        throw new BadRequestException('El vehículo principal debe ser de categoría Carrocería');
       }
     }
 
-    // Validar disponibilidad del cuerpo de arrastre si se actualiza
+    // Validar disponibilidad del elemento de arrastre si se actualiza
     if (updateTripDto.trailerBodyId !== undefined) {
       if (updateTripDto.trailerBodyId && updateTripDto.trailerBodyId !== existingTrip.trailerBodyId) {
-        const availableTrailerBodies = await this.getAvailableVehicles(companyId, tripDate, 'CUERPO_ARRASTRE', id);
+        const availableTrailerBodies = await this.getAvailableVehicles(companyId, tripDate, 'ELEMENTO_ARRASTRE', id);
         const trailerAvailable = availableTrailerBodies.some((v) => v.id === updateTripDto.trailerBodyId);
         if (!trailerAvailable) {
-          throw new BadRequestException('El cuerpo de arrastre seleccionado no está disponible para la fecha especificada');
+          throw new BadRequestException('El elemento de arrastre seleccionado no está disponible para la fecha especificada');
         }
 
         const trailerBody = await this.prisma.vehicle.findFirst({
           where: { id: updateTripDto.trailerBodyId, companyId },
         });
         if (!trailerBody) {
-          throw new NotFoundException('Cuerpo de arrastre no encontrado');
+          throw new NotFoundException('Elemento de arrastre no encontrado');
         }
-        if (trailerBody.category !== 'CUERPO_ARRASTRE') {
-          throw new BadRequestException('El cuerpo de arrastre debe ser de categoría CUERPO_ARRASTRE');
+        if (trailerBody.category !== 'ELEMENTO_ARRASTRE') {
+          throw new BadRequestException('El elemento de arrastre debe ser de categoría Elemento de Arrastre');
         }
       }
     }

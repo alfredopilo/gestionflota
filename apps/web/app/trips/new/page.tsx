@@ -85,12 +85,12 @@ export default function NewTripPage() {
 
   const loadAvailableVehicles = async (date: string) => {
     try {
-      // Cargar carros disponibles
-      const vehiclesRes = await api.get(`/trips/available-vehicles?date=${date}&category=CARRO`);
+      // Cargar carrocerías disponibles
+      const vehiclesRes = await api.get(`/trips/available-vehicles?date=${date}&category=CARROCERIA`);
       setVehicles(vehiclesRes.data || []);
 
-      // Cargar cuerpos de arrastre disponibles
-      const trailerBodiesRes = await api.get(`/trips/available-vehicles?date=${date}&category=CUERPO_ARRASTRE`);
+      // Cargar elementos de arrastre disponibles
+      const trailerBodiesRes = await api.get(`/trips/available-vehicles?date=${date}&category=ELEMENTO_ARRASTRE`);
       setTrailerBodies(trailerBodiesRes.data || []);
     } catch (error) {
       console.error('Error loading available vehicles:', error);
@@ -98,8 +98,8 @@ export default function NewTripPage() {
       try {
         const vehiclesRes = await api.get('/vehicles?page=1&limit=100');
         const allVehicles = vehiclesRes.data.data || [];
-        setVehicles(allVehicles.filter((v: Vehicle & { category?: string }) => v.category === 'CARRO' || !v.category));
-        setTrailerBodies(allVehicles.filter((v: Vehicle & { category?: string }) => v.category === 'CUERPO_ARRASTRE'));
+        setVehicles(allVehicles.filter((v: Vehicle & { category?: string }) => v.category === 'CARROCERIA' || !v.category));
+        setTrailerBodies(allVehicles.filter((v: Vehicle & { category?: string }) => v.category === 'ELEMENTO_ARRASTRE'));
       } catch (e) {
         console.error('Error loading fallback vehicles:', e);
       }

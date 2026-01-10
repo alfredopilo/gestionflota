@@ -13,6 +13,15 @@ export class VehiclesService {
         ...createVehicleDto,
         companyId,
       },
+      include: {
+        maintenancePlan: {
+          select: {
+            id: true,
+            name: true,
+            vehicleType: true,
+          },
+        },
+      },
     });
   }
 
@@ -27,6 +36,15 @@ export class VehiclesService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          maintenancePlan: {
+            select: {
+              id: true,
+              name: true,
+              vehicleType: true,
+            },
+          },
+        },
       }),
       this.prisma.vehicle.count({
         where: {
@@ -56,6 +74,14 @@ export class VehiclesService {
       },
       include: {
         documents: true,
+        maintenancePlan: {
+          select: {
+            id: true,
+            name: true,
+            vehicleType: true,
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -71,6 +97,15 @@ export class VehiclesService {
     return this.prisma.vehicle.update({
       where: { id },
       data: updateVehicleDto,
+      include: {
+        maintenancePlan: {
+          select: {
+            id: true,
+            name: true,
+            vehicleType: true,
+          },
+        },
+      },
     });
   }
 

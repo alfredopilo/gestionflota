@@ -28,8 +28,8 @@ export class CreateVehicleDto {
   @IsString()
   type: string;
 
-  @ApiProperty({ enum: ['CARRO', 'CUERPO_ARRASTRE'], default: 'CARRO' })
-  @IsEnum(['CARRO', 'CUERPO_ARRASTRE'])
+  @ApiProperty({ enum: ['CARROCERIA', 'ELEMENTO_ARRASTRE'], default: 'CARROCERIA' })
+  @IsEnum(['CARROCERIA', 'ELEMENTO_ARRASTRE'])
   category: string;
 
   @ApiProperty({ required: false })
@@ -56,4 +56,9 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsString()
   deviceCode?: string;
+
+  @ApiProperty({ required: false, description: 'ID del plan de mantenimiento asignado' })
+  @IsOptional()
+  @IsString()
+  maintenancePlanId?: string;
 }

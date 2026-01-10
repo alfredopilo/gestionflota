@@ -63,7 +63,7 @@ export class TripsController {
   @ApiOperation({ summary: 'Obtener vehículos disponibles para una fecha y categoría' })
   getAvailableVehicles(
     @Query('date') date: string,
-    @Query('category') category: 'CARRO' | 'CUERPO_ARRASTRE',
+    @Query('category') category: 'CARROCERIA' | 'ELEMENTO_ARRASTRE',
     @Query('excludeTripId') excludeTripId: string,
     @CurrentUser() user: any,
   ) {

@@ -1,6 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import api from '@/lib/api';
+
+interface MaintenancePlan {
+  id: string;
+  name: string;
+  vehicleType: string | null;
+  isActive: boolean;
+}
 
 interface Vehicle {
   id?: string;
@@ -16,6 +24,8 @@ interface Vehicle {
   odometer: number;
   hourmeter: number;
   deviceCode?: string;
+  maintenancePlanId?: string;
+  maintenancePlan?: MaintenancePlan | null;
 }
 
 interface VehicleModalProps {
@@ -33,21 +43,25 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
     year: null,
     vin: '',
     type: 'TRUCK',
-    category: 'CARRO',
+    category: 'CARROCERIA',
     capacity: 0,
     status: 'ACTIVE',
     odometer: 0,
     hourmeter: 0,
     deviceCode: '',
+    maintenancePlanId: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [maintenancePlans, setMaintenancePlans] = useState<MaintenancePlan[]>([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
 
   useEffect(() => {
     if (vehicle) {
       setFormData({
         ...vehicle,
-        category: vehicle.category || 'CARRO',
+        category: vehicle.category || 'CARROCERIA',
+        maintenancePlanId: vehicle.maintenancePlanId || vehicle.maintenancePlan?.id || '',
       });
     } else {
       setFormData({
@@ -57,25 +71,48 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
         year: null,
         vin: '',
         type: 'TRUCK',
-        category: 'CARRO',
+        category: 'CARROCERIA',
         capacity: 0,
         status: 'ACTIVE',
         odometer: 0,
         hourmeter: 0,
         deviceCode: '',
+        maintenancePlanId: '',
       });
     }
     setError('');
   }, [vehicle, isOpen]);
 
+  // Cargar planes de mantenimiento cuando se abre el modal
+  useEffect(() => {
+    const fetchMaintenancePlans = async () => {
+      if (!isOpen) return;
+      
+      setLoadingPlans(true);
+      try {
+        const response = await api.get('/maintenance/plans');
+        // Filtrar solo planes activos
+        const activePlans = (response.data || []).filter((plan: MaintenancePlan) => plan.isActive);
+        setMaintenancePlans(activePlans);
+      } catch (err) {
+        console.error('Error loading maintenance plans:', err);
+        setMaintenancePlans([]);
+      } finally {
+        setLoadingPlans(false);
+      }
+    };
+
+    fetchMaintenancePlans();
+  }, [isOpen]);
+
   const handleCategoryChange = (category: string) => {
     // Resetear el tipo cuando cambia la categoría
-    const defaultType = category === 'CARRO' ? 'TRUCK' : 'BAÑERAS';
+    const defaultType = category === 'CARROCERIA' ? 'TRUCK' : 'BAÑERAS';
     setFormData({ ...formData, category, type: defaultType });
   };
 
   const getTypeOptions = () => {
-    if (formData.category === 'CUERPO_ARRASTRE') {
+    if (formData.category === 'ELEMENTO_ARRASTRE') {
       return (
         <>
           <option value="BAÑERAS">Bañeras</option>
@@ -109,7 +146,10 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
         year: formData.year || undefined,
         vin: formData.vin || undefined,
         deviceCode: formData.deviceCode || undefined,
+        maintenancePlanId: formData.maintenancePlanId || undefined,
       };
+      // Eliminar maintenancePlan del objeto para no enviar datos innecesarios
+      delete (dataToSend as any).maintenancePlan;
       await onSave(dataToSend as Vehicle);
       onClose();
     } catch (err: any) {
@@ -230,12 +270,12 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
                 </label>
                 <select
                   required
-                  value={formData.category || 'CARRO'}
+                  value={formData.category || 'CARROCERIA'}
                   onChange={(e) => handleCategoryChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="CARRO">Carro</option>
-                  <option value="CUERPO_ARRASTRE">Cuerpo de Arrastre</option>
+                  <option value="CARROCERIA">Carrocería</option>
+                  <option value="ELEMENTO_ARRASTRE">Elemento de Arrastre</option>
                 </select>
               </div>
 
@@ -323,6 +363,30 @@ export default function VehicleModal({ vehicle, isOpen, onClose, onSave }: Vehic
                   }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Plan de Mantenimiento
+                </label>
+                <select
+                  value={formData.maintenancePlanId || ''}
+                  onChange={(e) => setFormData({ ...formData, maintenancePlanId: e.target.value || undefined })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={loadingPlans}
+                >
+                  <option value="">
+                    {loadingPlans ? 'Cargando planes...' : 'Sin plan asignado (usará plan por defecto)'}
+                  </option>
+                  {maintenancePlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} {plan.vehicleType ? `(${plan.vehicleType})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Asigna un plan de mantenimiento específico para este vehículo
+                </p>
               </div>
             </div>
 

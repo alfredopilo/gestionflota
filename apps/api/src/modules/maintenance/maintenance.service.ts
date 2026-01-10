@@ -33,18 +33,70 @@ export class MaintenanceService {
     });
   }
 
+  async getPlanByVehicleType(vehicleType: string, companyId: string) {
+    return this.prisma.maintenancePlan.findFirst({
+      where: {
+        companyId,
+        isActive: true,
+        vehicleType: vehicleType,
+      },
+      include: {
+        intervals: {
+          orderBy: { sequenceOrder: 'asc' },
+        },
+        activities: {
+          where: { isActive: true },
+          include: {
+            activityMatrix: {
+              include: {
+                interval: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async calculateNextMaintenance(vehicleId: string, companyId: string) {
     const vehicle = await this.prisma.vehicle.findFirst({
       where: { id: vehicleId, companyId },
+      include: {
+        maintenancePlan: {
+          include: {
+            intervals: {
+              orderBy: { sequenceOrder: 'asc' },
+            },
+            activities: {
+              where: { isActive: true },
+              include: {
+                activityMatrix: {
+                  include: {
+                    interval: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found');
     }
 
-    const plan = await this.getPlan(companyId);
+    // Usar el plan asignado al vehículo, si no tiene, buscar por tipo de vehículo
+    let plan = vehicle.maintenancePlan;
     if (!plan) {
-      throw new NotFoundException('No active maintenance plan found');
+      plan = await this.getPlanByVehicleType(vehicle.type, companyId);
+    }
+    if (!plan) {
+      // Fallback: buscar cualquier plan activo de la compañía
+      plan = await this.getPlan(companyId);
+    }
+    if (!plan) {
+      throw new NotFoundException('No active maintenance plan found for this vehicle');
     }
 
     const lastMaintenance = await this.prisma.workOrder.findFirst({
@@ -544,23 +596,9 @@ export class MaintenanceService {
       throw new BadRequestException('At least one activity is required');
     }
 
-    // Si se activa este plan y hay otro activo del mismo tipo, desactivarlo
-    if (createPlanDto.isActive !== false) {
-      const existingActivePlan = await this.prisma.maintenancePlan.findFirst({
-        where: {
-          companyId,
-          isActive: true,
-          vehicleType: createPlanDto.vehicleType || null,
-        },
-      });
-
-      if (existingActivePlan) {
-        await this.prisma.maintenancePlan.update({
-          where: { id: existingActivePlan.id },
-          data: { isActive: false },
-        });
-      }
-    }
+    // NOTA: Ya no se desactivan otros planes automáticamente.
+    // Se permite tener múltiples planes activos por tipo de vehículo.
+    // Los vehículos se asignan a planes específicos individualmente.
 
     // Crear plan
     const plan = await this.prisma.maintenancePlan.create({
@@ -654,24 +692,8 @@ export class MaintenanceService {
   async updatePlan(id: string, updatePlanDto: UpdateMaintenancePlanDto, companyId: string) {
     const plan = await this.findPlanById(id, companyId);
 
-    // Si se activa este plan, desactivar otros del mismo tipo
-    if (updatePlanDto.isActive === true && !plan.isActive) {
-      const existingActivePlan = await this.prisma.maintenancePlan.findFirst({
-        where: {
-          companyId,
-          isActive: true,
-          vehicleType: plan.vehicleType || null,
-          id: { not: id },
-        },
-      });
-
-      if (existingActivePlan) {
-        await this.prisma.maintenancePlan.update({
-          where: { id: existingActivePlan.id },
-          data: { isActive: false },
-        });
-      }
-    }
+    // NOTA: Ya no se desactivan otros planes automáticamente.
+    // Se permite tener múltiples planes activos por tipo de vehículo.
 
     // Actualizar datos básicos del plan
     const updateData: any = {};
@@ -813,18 +835,10 @@ export class MaintenanceService {
   }
 
   async activatePlan(id: string, companyId: string) {
-    const plan = await this.findPlanById(id, companyId);
+    await this.findPlanById(id, companyId);
 
-    // Desactivar otros planes del mismo tipo
-    await this.prisma.maintenancePlan.updateMany({
-      where: {
-        companyId,
-        isActive: true,
-        vehicleType: plan.vehicleType || null,
-        id: { not: id },
-      },
-      data: { isActive: false },
-    });
+    // NOTA: Ya no se desactivan otros planes automáticamente.
+    // Se permite tener múltiples planes activos por tipo de vehículo.
 
     // Activar este plan
     return this.prisma.maintenancePlan.update({
