@@ -247,42 +247,117 @@ main() {
     # Paso 5: Iniciar contenedores
     safe_command "$DOCKER_COMPOSE_CMD up -d" "Iniciando contenedores"
     
-    # Esperar a que los servicios estén listos
+    # Esperar a que los servicios estén listos con verificación activa
     echo -e "\n${CYAN}⏳ Esperando a que los servicios estén listos...${NC}"
-    sleep 15
+    
+    # Función para esperar a que el contenedor API esté listo
+    wait_for_api() {
+        local max_attempts=30
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            if $DOCKER_COMPOSE_CMD exec -T api echo "ready" &>/dev/null; then
+                echo -e "${GREEN}  ✅ Contenedor API listo${NC}"
+                return 0
+            fi
+            echo -e "${CYAN}  ⏳ Esperando contenedor API... (intento $attempt/$max_attempts)${NC}"
+            sleep 2
+            attempt=$((attempt + 1))
+        done
+        
+        echo -e "${YELLOW}  ⚠️  Tiempo de espera agotado para API${NC}"
+        return 1
+    }
+    
+    # Función para esperar a que PostgreSQL esté listo
+    wait_for_postgres() {
+        local max_attempts=30
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            if $DOCKER_COMPOSE_CMD exec -T postgres pg_isready -U postgres &>/dev/null; then
+                echo -e "${GREEN}  ✅ PostgreSQL listo${NC}"
+                return 0
+            fi
+            echo -e "${CYAN}  ⏳ Esperando PostgreSQL... (intento $attempt/$max_attempts)${NC}"
+            sleep 2
+            attempt=$((attempt + 1))
+        done
+        
+        echo -e "${YELLOW}  ⚠️  Tiempo de espera agotado para PostgreSQL${NC}"
+        return 1
+    }
+    
+    # Esperar a PostgreSQL primero
+    wait_for_postgres
+    
+    # Esperar un poco más para que el contenedor API termine de iniciar
+    sleep 5
+    
+    # Esperar a que el contenedor API esté listo
+    wait_for_api
     
     # Paso 6: Regenerar Prisma Client dentro del contenedor
-    echo -e "\n${CYAN}🔄 Regenerando Prisma Client...${NC}"
-    if $DOCKER_COMPOSE_CMD exec -T api npx prisma generate 2>&1; then
-        echo -e "${GREEN}  ✅ Prisma Client regenerado${NC}"
-    else
-        echo -e "${YELLOW}  ⚠️  Error al regenerar Prisma. Continuando...${NC}"
+    echo -e "\n${CYAN}🔄 Regenerando Prisma Client dentro del contenedor...${NC}"
+    
+    # Intentar regenerar Prisma con reintentos
+    local prisma_success=false
+    for i in 1 2 3; do
+        echo -e "${CYAN}  📝 Intento $i de regenerar Prisma Client...${NC}"
+        if $DOCKER_COMPOSE_CMD exec -T api sh -c "cd /app && npx prisma generate" 2>&1; then
+            echo -e "${GREEN}  ✅ Prisma Client regenerado correctamente${NC}"
+            prisma_success=true
+            break
+        else
+            echo -e "${YELLOW}  ⚠️  Intento $i fallido.${NC}"
+            if [ $i -lt 3 ]; then
+                echo -e "${CYAN}  ⏳ Esperando 5 segundos antes de reintentar...${NC}"
+                sleep 5
+            fi
+        fi
+    done
+    
+    if [ "$prisma_success" = false ]; then
+        echo -e "${YELLOW}  ⚠️  No se pudo regenerar Prisma después de 3 intentos.${NC}"
+        echo -e "${CYAN}  💡 Puedes intentar manualmente:${NC}"
+        echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma generate"
     fi
     
     # Paso 7: Aplicar migraciones de base de datos
     echo -e "\n${CYAN}📦 Aplicando migraciones de base de datos...${NC}"
-    echo -e "${CYAN}  📋 Esto incluirá las migraciones de GPS (gps_configurations, vehicle_gps_locations)${NC}"
-    if $DOCKER_COMPOSE_CMD exec -T api npx prisma migrate deploy 2>&1; then
+    echo -e "${CYAN}  📋 Esto incluirá todas las migraciones (incluyendo GPS)${NC}"
+    
+    # Intentar migrate deploy primero
+    if $DOCKER_COMPOSE_CMD exec -T api sh -c "cd /app && npx prisma migrate deploy" 2>&1; then
         echo -e "${GREEN}  ✅ Migraciones aplicadas correctamente${NC}"
     else
         echo -e "${YELLOW}  ⚠️  Hubo problemas con migrate deploy. Intentando con db push...${NC}"
         echo -e "${CYAN}  🔄 Sincronizando schema directamente...${NC}"
-        if $DOCKER_COMPOSE_CMD exec -T api npx prisma db push --accept-data-loss 2>&1; then
+        
+        if $DOCKER_COMPOSE_CMD exec -T api sh -c "cd /app && npx prisma db push --accept-data-loss" 2>&1; then
             echo -e "${GREEN}  ✅ Schema sincronizado correctamente${NC}"
         else
-            echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones. Puedes intentar manualmente:${NC}"
+            echo -e "${YELLOW}  ⚠️  Hubo problemas con las migraciones.${NC}"
+            echo -e "${CYAN}  💡 Puedes intentar manualmente:${NC}"
             echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npx prisma migrate deploy"
+            echo -e "${NC}     O: $DOCKER_COMPOSE_CMD exec api npx prisma db push"
         fi
     fi
     
     # Paso 8: Ejecutar seed (crear datos iniciales)
     echo -e "\n${CYAN}🌱 Ejecutando seed (creando datos iniciales)...${NC}"
-    if $DOCKER_COMPOSE_CMD exec -T api npm run prisma:seed 2>&1; then
+    if $DOCKER_COMPOSE_CMD exec -T api sh -c "cd /app && npm run prisma:seed" 2>&1; then
         echo -e "${GREEN}  ✅ Seed ejecutado correctamente${NC}"
     else
-        echo -e "${YELLOW}  ⚠️  No se pudo ejecutar el seed. Puedes ejecutarlo manualmente:${NC}"
+        echo -e "${YELLOW}  ⚠️  No se pudo ejecutar el seed.${NC}"
+        echo -e "${CYAN}  💡 Puedes ejecutarlo manualmente:${NC}"
         echo -e "${NC}     $DOCKER_COMPOSE_CMD exec api npm run prisma:seed"
     fi
+    
+    # Reiniciar el contenedor API para aplicar cambios
+    echo -e "\n${CYAN}🔄 Reiniciando contenedor API para aplicar cambios...${NC}"
+    $DOCKER_COMPOSE_CMD restart api
+    sleep 5
     
     # Paso 9: Verificar estado de los contenedores
     echo -e "\n${CYAN}📊 Verificando estado de los contenedores...${NC}"
