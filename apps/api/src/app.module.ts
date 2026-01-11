@@ -18,6 +18,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { RoutesModule } from './modules/routes/routes.module';
 import { ExpenseTypesModule } from './modules/expense-types/expense-types.module';
 import { GpsModule } from './modules/gps/gps.module';
+import { WorkshopsModule } from './modules/workshops/workshops.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -41,6 +42,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     RoutesModule,
     ExpenseTypesModule,
     GpsModule,
+    WorkshopsModule,
   ],
   controllers: [AppController],
   providers: [

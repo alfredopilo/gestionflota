@@ -33,6 +33,7 @@ model Company {
   alerts    Alert[]
   expenseTypes ExpenseType[]
   gpsConfigurations GpsConfiguration[]
+  workshops Workshop[]
 
   @@map("companies")
 }
@@ -368,6 +369,28 @@ model ActivityIntervalMatrix {
 // ÓRDENES DE TRABAJO Y MANTENIMIENTO
 // ============================================
 
+// Talleres Externos
+model Workshop {
+  id            String   @id @default(uuid())
+  name          String
+  contactPerson String?  @map("contact_person")
+  phone         String?
+  email         String?
+  address       String?
+  notes         String?
+  isActive      Boolean  @default(true) @map("is_active")
+  companyId     String   @map("company_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  company       Company      @relation(fields: [companyId], references: [id])
+  workOrders    WorkOrder[]
+
+  @@index([companyId])
+  @@index([isActive])
+  @@map("workshops")
+}
+
 model WorkOrder {
   id                  String   @id @default(uuid())
   number              String   @unique
@@ -382,6 +405,8 @@ model WorkOrder {
   totalCost           Decimal? @map("total_cost") @db.Decimal(10, 2)
   operatorId          String?  @map("operator_id")
   supervisorId        String?  @map("supervisor_id")
+  isInternal          Boolean  @default(true) @map("is_internal")
+  workshopId          String?  @map("workshop_id")
   notes               String?
   companyId           String   @map("company_id")
   createdAt           DateTime @default(now()) @map("created_at")
@@ -391,6 +416,7 @@ model WorkOrder {
   company             Company              @relation(fields: [companyId], references: [id])
   operator            User?                @relation("WorkOrderOperator", fields: [operatorId], references: [id])
   supervisor          User?                @relation("WorkOrderSupervisor", fields: [supervisorId], references: [id])
+  workshop            Workshop?            @relation(fields: [workshopId], references: [id])
   items               WorkOrderItem[]
   signatures          WorkOrderSignature[]
 
@@ -398,6 +424,7 @@ model WorkOrder {
   @@index([vehicleId])
   @@index([status])
   @@index([number])
+  @@index([workshopId])
   @@map("work_orders")
 }
 

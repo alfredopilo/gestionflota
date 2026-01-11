@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsDateString, IsEnum, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsEnum, IsNumber, IsBoolean } from 'class-validator';
 
 export class CreateWorkOrderDto {
   @ApiProperty()
@@ -34,6 +34,16 @@ export class CreateWorkOrderDto {
   @IsOptional()
   @IsString()
   supervisorId?: string;
+
+  @ApiProperty({ required: false, default: true })
+  @IsOptional()
+  @IsBoolean()
+  isInternal?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  workshopId?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

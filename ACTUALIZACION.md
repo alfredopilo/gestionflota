@@ -275,8 +275,44 @@ El script ejecuta los siguientes pasos en orden:
 4. ✅ **Prisma**: Regenera el cliente de Prisma (si no se saltea)
 5. ✅ **Build**: Reconstruye las imágenes Docker (si no se saltea)
 6. ✅ **Inicio**: Inicia todos los contenedores
-7. ✅ **Migraciones**: Aplica las migraciones de base de datos
+7. ✅ **Migraciones**: Aplica las migraciones de base de datos (incluyendo nuevas tablas y campos)
 8. ✅ **Verificación**: Muestra el estado de los contenedores
+
+## 🆕 Últimas Actualizaciones (Enero 2026)
+
+### Gestión de Talleres Internos/Externos
+
+Se ha agregado funcionalidad para distinguir entre mantenimiento interno y externo:
+
+**Base de Datos:**
+- Nueva tabla `workshops` para gestionar talleres externos
+- Campos agregados a `work_orders`:
+  - `is_internal` (boolean): Indica si el mantenimiento es interno o externo
+  - `workshop_id` (uuid): Referencia opcional al taller externo
+
+**Módulo Backend:**
+- Nuevo endpoint `/api/v1/workshops` con CRUD completo
+- Validación automática: mantenimiento externo requiere taller asignado
+- Filtrado por compañía para multi-tenancy
+
+**Formulario Frontend:**
+- Radio buttons para seleccionar ubicación (Interno/Externo)
+- Dropdown de talleres con opción de agregar nuevos
+- Modal moderno para crear talleres rápidamente
+
+**Para aplicar estos cambios:**
+```powershell
+# Windows
+.\update.ps1 -SkipIPPrompt
+
+# Linux/VPS
+./update.sh --skip-ip
+```
+
+Las migraciones se aplicarán automáticamente y crearán:
+- La tabla `workshops`
+- Los campos `is_internal` y `workshop_id` en `work_orders`
+- Los índices necesarios para optimizar consultas
 
 ## 🎯 Casos de Uso Comunes
 
@@ -352,5 +388,7 @@ Si encuentras problemas:
 
 ---
 
-**Última actualización**: Diciembre 2025
+**Última actualización**: Enero 2026
+
+**Versión**: 1.5.0 - Gestión de Talleres Internos/Externos
 

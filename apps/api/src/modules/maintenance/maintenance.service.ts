@@ -184,6 +184,26 @@ export class MaintenanceService {
       throw new NotFoundException('Vehicle not found');
     }
 
+    // Validar que si no es interno, debe tener un taller asignado
+    if (createWorkOrderDto.isInternal === false && !createWorkOrderDto.workshopId) {
+      throw new BadRequestException('Workshop ID is required for external maintenance');
+    }
+
+    // Si tiene workshopId, validar que el taller existe y pertenece a la compañía
+    if (createWorkOrderDto.workshopId) {
+      const workshop = await this.prisma.workshop.findFirst({
+        where: {
+          id: createWorkOrderDto.workshopId,
+          companyId,
+          isActive: true,
+        },
+      });
+
+      if (!workshop) {
+        throw new NotFoundException('Workshop not found or inactive');
+      }
+    }
+
     // Generar número de orden
     const count = await this.prisma.workOrder.count({
       where: { companyId },
@@ -268,6 +288,7 @@ export class MaintenanceService {
               lastName: true,
             },
           },
+          workshop: true,
           _count: {
             select: {
               items: true,
@@ -311,6 +332,7 @@ export class MaintenanceService {
             email: true,
           },
         },
+        workshop: true,
         items: {
           include: {
             activity: true,
