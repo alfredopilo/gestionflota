@@ -6,7 +6,7 @@ import api from '@/lib/api';
 
 interface Inspection {
   id: string;
-  inspectionNumber: string;
+  number: string;
   vehicle: {
     id: string;
     plate: string;
@@ -16,10 +16,12 @@ interface Inspection {
     name: string;
   };
   status: string;
-  performedAt?: string;
-  performedBy?: {
+  inspectionDate: string;
+  inspector?: {
+    id: string;
     firstName: string;
     lastName: string;
+    email: string;
   };
   createdAt: string;
 }
@@ -126,7 +128,7 @@ export default function InspectionsPage() {
                     onClick={() => router.push(`/inspections/${inspection.id}`)}
                   >
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                      {inspection.inspectionNumber}
+                      {inspection.number}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {inspection.vehicle.plate}
@@ -152,8 +154,8 @@ export default function InspectionsPage() {
                       </span>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                      {inspection.performedBy
-                        ? `${inspection.performedBy.firstName} ${inspection.performedBy.lastName}`
+                      {inspection.inspector
+                        ? `${inspection.inspector.firstName} ${inspection.inspector.lastName}`
                         : '-'}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">

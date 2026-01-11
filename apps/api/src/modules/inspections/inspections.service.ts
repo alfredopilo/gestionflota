@@ -65,8 +65,15 @@ export class InspectionsService {
       });
     }
 
+    // Generar número de inspección
+    const count = await this.prisma.inspection.count({
+      where: { companyId },
+    });
+    const number = `INS-${String(count + 1).padStart(6, '0')}`;
+
     const inspection = await this.prisma.inspection.create({
       data: {
+        number,
         vehicleId: createInspectionDto.vehicleId,
         templateId: createInspectionDto.templateId || null,
         inspectorId,
@@ -159,7 +166,14 @@ export class InspectionsService {
         skip,
         take: limit,
         include: {
-          vehicle: true,
+          vehicle: {
+            select: {
+              id: true,
+              plate: true,
+              brand: true,
+              model: true,
+            },
+          },
           inspector: {
             select: {
               id: true,
@@ -168,7 +182,12 @@ export class InspectionsService {
               email: true,
             },
           },
-          template: true,
+          template: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
           _count: {
             select: {
               items: true,
