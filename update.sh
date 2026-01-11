@@ -159,6 +159,42 @@ apply_critical_migrations() {
         echo -e "${YELLOW}  ⚠️  No se pudo verificar maintenance_plan_id (puede que ya exista)${NC}"
     fi
     
+    # Migración: Crear tabla workshops y actualizar work_orders
+    echo -e "${CYAN}  🔄 Verificando tabla workshops y campos de ubicación...${NC}"
+    $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
+        -- Crear tabla workshops si no existe
+        CREATE TABLE IF NOT EXISTS workshops (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+            name TEXT NOT NULL,
+            contact_person TEXT,
+            phone TEXT,
+            email TEXT,
+            address TEXT,
+            notes TEXT,
+            is_active BOOLEAN DEFAULT true NOT NULL,
+            company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+            updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+        );
+        
+        -- Crear índices para workshops
+        CREATE INDEX IF NOT EXISTS workshops_company_id_idx ON workshops(company_id);
+        CREATE INDEX IF NOT EXISTS workshops_is_active_idx ON workshops(is_active);
+        
+        -- Agregar columnas is_internal y workshop_id a work_orders
+        ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS is_internal BOOLEAN DEFAULT true;
+        ALTER TABLE work_orders ADD COLUMN IF NOT EXISTS workshop_id TEXT REFERENCES workshops(id);
+        
+        -- Crear índice para workshop_id
+        CREATE INDEX IF NOT EXISTS work_orders_workshop_id_idx ON work_orders(workshop_id);
+    " 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  ✅ Tabla workshops y campos de ubicación verificados/creados${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  No se pudieron verificar tablas workshops (pueden ya existir)${NC}"
+    fi
+    
     # Migración: Agregar tablas GPS si no existen
     echo -e "${CYAN}  🔄 Verificando tablas GPS...${NC}"
     $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
@@ -529,6 +565,7 @@ main() {
     echo -e "${NC}   ✅ Múltiples planes de mantenimiento activos por tipo"
     echo -e "${NC}   ✅ Asignación directa de plan de mantenimiento a vehículos"
     echo -e "${NC}   ✅ Visualización GPS Global con mapas interactivos"
+    echo -e "${NC}   ✅ Gestión de talleres internos/externos en órdenes de trabajo"
     
     echo -e "\n${GREEN}✨ ¡Sistema actualizado y listo para usar!${NC}"
 }
