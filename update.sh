@@ -195,6 +195,48 @@ apply_critical_migrations() {
         echo -e "${YELLOW}  ⚠️  No se pudieron verificar tablas workshops (pueden ya existir)${NC}"
     fi
     
+    # Migración: Agregar campo number a inspections y generar números
+    echo -e "${CYAN}  🔄 Verificando campo number en inspections...${NC}"
+    $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
+        -- Agregar columna number si no existe
+        ALTER TABLE inspections ADD COLUMN IF NOT EXISTS number TEXT;
+        
+        -- Generar números para inspecciones existentes sin número
+        DO \$\$
+        DECLARE
+            insp RECORD;
+            counter INTEGER := 1;
+        BEGIN
+            FOR insp IN SELECT id FROM inspections WHERE number IS NULL ORDER BY created_at LOOP
+                UPDATE inspections 
+                SET number = 'INS-' || LPAD(counter::TEXT, 6, '0')
+                WHERE id = insp.id;
+                counter := counter + 1;
+            END LOOP;
+        END \$\$;
+        
+        -- Agregar constraint único si no existe
+        DO \$\$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint 
+                WHERE conname = 'inspections_number_key' 
+                AND conrelid = 'inspections'::regclass
+            ) THEN
+                ALTER TABLE inspections ADD CONSTRAINT inspections_number_key UNIQUE (number);
+            END IF;
+        END \$\$;
+        
+        -- Crear índice si no existe
+        CREATE INDEX IF NOT EXISTS inspections_number_idx ON inspections(number);
+    " 2>/dev/null
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}  ✅ Campo number en inspections verificado/creado${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  No se pudo verificar campo number en inspections (puede que ya exista)${NC}"
+    fi
+    
     # Migración: Agregar tablas GPS si no existen
     echo -e "${CYAN}  🔄 Verificando tablas GPS...${NC}"
     $DOCKER_COMPOSE_CMD exec -T postgres psql -U postgres -d gestiondeflota -c "
@@ -566,6 +608,7 @@ main() {
     echo -e "${NC}   ✅ Asignación directa de plan de mantenimiento a vehículos"
     echo -e "${NC}   ✅ Visualización GPS Global con mapas interactivos"
     echo -e "${NC}   ✅ Gestión de talleres internos/externos en órdenes de trabajo"
+    echo -e "${NC}   ✅ Módulo de Inspecciones completo con checklist tipo PDF"
     
     echo -e "\n${GREEN}✨ ¡Sistema actualizado y listo para usar!${NC}"
 }
