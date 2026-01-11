@@ -28,10 +28,22 @@ export class DashboardService {
       where: { ...where, status: 'ACTIVE' },
     });
 
-    // Vehículos en mantenimiento
-    const maintenanceVehicles = await this.prisma.vehicle.count({
+    // Órdenes de trabajo activas (PENDING o IN_PROGRESS)
+    const activeWorkOrders = await this.prisma.workOrder.count({
+      where: {
+        companyId,
+        status: { in: ['PENDING', 'IN_PROGRESS'] },
+        ...(filters?.vehicleId ? { vehicleId: filters.vehicleId } : {}),
+      },
+    });
+
+    // Mantener compatibilidad: también contar vehículos con status MAINTENANCE
+    const maintenanceVehiclesStatus = await this.prisma.vehicle.count({
       where: { ...where, status: 'MAINTENANCE' },
     });
+
+    // Usar el mayor entre órdenes activas y vehículos con status MAINTENANCE
+    const maintenanceVehicles = Math.max(activeWorkOrders, maintenanceVehiclesStatus);
 
     // Disponibilidad de flota
     const fleetAvailability = totalVehicles > 0

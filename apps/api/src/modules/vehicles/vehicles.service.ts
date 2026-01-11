@@ -82,6 +82,30 @@ export class VehiclesService {
             isActive: true,
           },
         },
+        tripsAsVehicle: {
+          select: {
+            id: true,
+            origin: true,
+            destination: true,
+            departureTime: true,
+            arrivalTime: true,
+            status: true,
+            kmTotal: true,
+            date: true,
+          },
+          orderBy: { date: 'desc' },
+        },
+        workOrders: {
+          select: {
+            id: true,
+            number: true,
+            type: true,
+            status: true,
+            scheduledDate: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -89,7 +113,24 @@ export class VehiclesService {
       throw new NotFoundException('Vehicle not found');
     }
 
-    return vehicle;
+    // Formatear trips para el frontend
+    const formattedTrips = vehicle.tripsAsVehicle?.map((trip) => ({
+      id: trip.id,
+      origin: trip.origin || '',
+      destination: trip.destination || '',
+      departureDate: trip.departureTime ? trip.departureTime.toISOString() : trip.date.toISOString(),
+      arrivalDate: trip.arrivalTime ? trip.arrivalTime.toISOString() : null,
+      status: trip.status,
+      distance: Number(trip.kmTotal || 0),
+    })) || [];
+
+    // Eliminar tripsAsVehicle y retornar solo trips formateados
+    const { tripsAsVehicle, ...vehicleWithoutTrips } = vehicle;
+
+    return {
+      ...vehicleWithoutTrips,
+      trips: formattedTrips,
+    };
   }
 
   async update(id: string, updateVehicleDto: UpdateVehicleDto, companyId: string) {
